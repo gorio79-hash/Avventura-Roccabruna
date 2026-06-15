@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L'Avventura della Taverna</title>
+<style>
+  :root {
+    --gold: #C48A28;
+    --cream: #F2DDAA;
+    --panel: #150C03;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: #070503;
+    font-family: Palatino, Georgia, serif;
+    user-select: none; -webkit-user-select: none;
+  }
+
+  /* ── PALCOSCENICO ── */
+  #stage {
+    position: relative;
+    width: min(100vw, 100vh, 1024px);
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #000;
+  }
+  #stage img { image-rendering: pixelated; }
+  .bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: none;
+  }
+  .bg.attiva { display: block; }
+
+  /* ── SPRITE TAVERNA ── */
+  #porta {
+    position: absolute;
+    left: 64.7%; top: 38%;
+    width: 15.1%; height: auto;
+    display: none;
+    pointer-events: none;
+  }
+  #botola {
+    position: absolute;
+    left: 44.4%; top: 77.1%;
+    width: 15.2%; height: auto;
+    transform-origin: top left;
+    transform: scaleY(0.55) skewX(14deg);
+    display: none;
+    pointer-events: none;
+  }
+  #oste {
+    position: absolute;
+    left: 28.5%; top: 49.5%;
+    width: 9.6%; height: auto;
+    display: none;
+    pointer-events: none;
+  }
+  #inserviente {
+    position: absolute;
+    left: 63%; top: 55%;
+    width: 15%; height: auto;
+    display: none;
+    pointer-events: none;
+  }
+
+  /* ── SPRITE CUCINA ── */
+  #portaCucina {
+    position: absolute;
+    left: 13.7%; top: 37.2%;
+    width: 11.2%; height: auto;
+    transform-origin: top left;
+    transform: skewY(-25deg);
+    display: none;
+    pointer-events: none;
+  }
+
+  /* ── SPRITE SOTTERRANEO ── */
+  #forziere {
+    position: absolute;
+    left: 60%; top: 76%;
+    width: 17%; height: auto;
+    display: none;
+    pointer-events: none;
+  }
+
+  /* ── LIVELLI HOTSPOT ── */
+  .livelloHotspot {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: none;
+  }
+  .livelloHotspot.attivo { display: block; }
+  .hot { cursor: pointer; }
+  .hot .zona { fill: transparent; stroke: none; }
+  .hot .etichetta {
+    display: none;
+    fill: var(--cream);
+    font-size: 26px;
+    font-family: Palatino, Georgia, serif;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: #000; stroke-width: 5px;
+    pointer-events: none;
+  }
+  .hot:hover .etichetta { display: block; }
+
+  /* ── HUD ── */
+  #titoloScena {
+    position: absolute; top: 12px; left: 16px;
+    color: var(--cream); font-size: clamp(15px, 2.2vw, 22px);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 14px #000, 0 0 4px #000;
+    pointer-events: none;
+  }
+  #btnInventario {
+    position: absolute; bottom: 14px; right: 14px;
+    padding: 9px 22px;
+    font-family: Palatino, Georgia, serif; font-size: clamp(13px, 1.9vw, 17px);
+    cursor: pointer; border-radius: 3px;
+    background: #382010; color: var(--cream);
+    border: 2px solid var(--gold);
+    letter-spacing: 0.05em;
+    box-shadow: 0 0 18px rgba(0,0,0,0.9);
+  }
+
+  /* ── SCENE SPECIALI ── */
+  #scBuio {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column; align-items: center; justify-content: flex-end;
+    padding-bottom: 60px;
+    background: #000;
+  }
+  #scBuio.attivo { display: flex; }
+  #scBuio button {
+    padding: 10px 24px; font-family: inherit; font-size: 16px; cursor: pointer;
+    border-radius: 3px; background: #1A1208; color: var(--cream);
+    border: 2px solid #5A4828; opacity: 0.85;
+  }
+  #scSegrete {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px;
+    color: var(--cream); background: radial-gradient(ellipse at center, #14101E 0%, #050308 80%);
+  }
+  #scSegrete.attivo { display: flex; }
+  #scSegrete h2 { color: var(--gold); margin: 0; font-weight: normal; letter-spacing: 0.08em; }
+  #scSegrete p { max-width: 440px; line-height: 1.5; font-style: italic; opacity: 0.85; margin: 0; }
+  #scSegrete button {
+    padding: 9px 22px; font-family: inherit; font-size: 16px; cursor: pointer;
+    border-radius: 3px; background: #382010; color: var(--cream); border: 2px solid var(--gold);
+  }
+
+  /* ── POPUP ── */
+  #velo {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.78);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200;
+  }
+  #velo.attivo { display: flex; }
+  #popup {
+    background: var(--panel);
+    border: 2px solid var(--gold); border-radius: 6px;
+    padding: 28px 34px; max-width: 460px; width: 90%;
+    text-align: center; color: var(--cream);
+    font-size: 18px; line-height: 1.6;
+    box-shadow: 0 0 60px rgba(196,138,40,0.15);
+    max-height: 85vh; overflow-y: auto;
+  }
+  #popup .nome { color: var(--gold); font-size: 20px; margin-bottom: 12px; letter-spacing: 0.05em; }
+  #popup .testo { margin-bottom: 22px; }
+  #popup .testo.corsivo { font-style: italic; }
+  #popup .bottoni { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  #popup .bottoni.colonna { flex-direction: column; align-items: stretch; }
+  #popup button {
+    padding: 9px 22px; font-family: inherit; font-size: 16px; cursor: pointer;
+    border-radius: 3px; color: var(--cream); letter-spacing: 0.05em;
+  }
+  #popup .si { background: #382010; border: 2px solid var(--gold); }
+  #popup .no { background: #380A08; border: 2px solid #7A2A1A; }
+
+  .ritrattoBox {
+    width: 92px; height: 92px;
+    overflow: hidden;
+    border: 2px solid var(--gold); border-radius: 6px;
+    margin: 0 auto 14px;
+    background: #2A1808;
+  }
+  .ritrattoBox img {
+    width: 100%; height: auto;
+    image-rendering: pixelated;
+    display: block;
+  }
+
+  /* ── INVENTARIO ── */
+  #pannelloInv h3 { color: var(--gold); text-align: center; font-weight: normal; margin: 0 0 6px; letter-spacing: 0.1em; }
+  #contaSlot { text-align: center; font-size: 13px; color: #9A8A6A; margin-bottom: 14px; }
+  #grigliaInv { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 18px; }
+  .oggettoInv {
+    background: #240E02; border: 1px solid #5A3818; border-radius: 4px;
+    padding: 8px 12px; display: flex; align-items: center; gap: 10px; font-size: 14px;
+    text-align: left;
+  }
+  .oggettoInv span.ic { font-size: 24px; }
+  .oggettoInv .nm { flex: 1; }
+  .oggettoInv button {
+    padding: 5px 12px !important; font-size: 13px !important;
+    background: #380A08; border: 1px solid #7A2A1A; color: var(--cream);
+    border-radius: 3px; cursor: pointer;
+  }
+  #invVuoto { text-align: center; font-style: italic; color: #7A6A5A; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <!-- Fondali -->
+  <img class="bg attiva" id="bgTaverna" src="img/taverna.jpg" alt="">
+  <img class="bg" id="bgCucina" src="img/cucina.jpg" alt="">
+  <img class="bg" id="bgSotterraneo" src="img/sotterraneo.png" alt="">
+
+  <!-- Sprite -->
+  <img id="porta" src="img/porta-chiusa.png" alt="">
+  <img id="botola" src="img/botola.png" alt="">
+  <img id="oste" src="img/oste.png" alt="">
+  <img id="inserviente" src="img/inserviente.png" alt="">
+  <img id="portaCucina" src="img/porta-chiusa.png" alt="">
+  <img id="forziere" src="img/forziere-chiuso.png" alt="">
+
+  <!-- Sotterraneo al buio -->
+  <div id="scBuio">
+    <button onclick="vaiAScena('taverna')">↑ Risali a tentoni</button>
+  </div>
+
+  <!-- Segrete del castello: schermata di transizione verso segrete.html -->
+  <div id="scSegrete">
+    <h2>― Le Segrete del Castello ―</h2>
+    <p>Il cunicolo sbuca in una sala di pietra fredda, sotto le fondamenta del castello. Dietro di te, il passaggio è franato: non si torna indietro.</p>
+    <button onclick="window.location.href='segrete.html'">Avanza nelle segrete →</button>
+  </div>
+
+  <!-- ═══════════ HOTSPOT TAVERNA ═══════════ -->
+  <svg class="livelloHotspot attivo" id="hsTaverna" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+
+    <g class="hot" data-id="porta">
+      <rect class="zona" x="663" y="389" width="155" height="237" rx="8"/>
+      <text class="etichetta" x="740" y="372">Porta della cucina</text>
+    </g>
+
+    <g class="hot" data-id="botola">
+      <polygon class="zona" points="455,790 610,790 645,880 480,880"/>
+      <text class="etichetta" x="550" y="770">Botola</text>
+    </g>
+
+    <g class="hot" data-id="oste">
+      <rect class="zona" x="288" y="503" width="105" height="248" rx="10"/>
+      <text class="etichetta" x="340" y="488">Baldric l'Oste</text>
+    </g>
+
+    <g class="hot" data-id="inserviente">
+      <rect class="zona" x="640" y="558" width="165" height="275" rx="10"/>
+      <text class="etichetta" x="722" y="543">Inserviente</text>
+    </g>
+
+    <g class="hot" data-id="pergamena">
+      <rect class="zona" x="100" y="650" width="115" height="75" rx="8"/>
+      <text class="etichetta" x="158" y="635">Pergamena</text>
+    </g>
+
+    <g class="hot" data-id="chiave">
+      <rect class="zona" x="288" y="372" width="78" height="85" rx="8"/>
+      <text class="etichetta" x="327" y="356">Lanterna</text>
+    </g>
+
+    <g class="hot" data-id="statuetta">
+      <rect class="zona" x="848" y="703" width="78" height="92" rx="8"/>
+      <text class="etichetta" x="887" y="688">Statuetta</text>
+    </g>
+
+    <g class="hot" data-id="finestra">
+      <rect class="zona" x="390" y="245" width="180" height="300" rx="8"/>
+      <text class="etichetta" x="480" y="228">Finestra</text>
+    </g>
+
+    <g class="hot" data-id="lampadario">
+      <rect class="zona" x="158" y="298" width="128" height="98" rx="8"/>
+      <text class="etichetta" x="222" y="282">Lampadario</text>
+    </g>
+  </svg>
+
+  <!-- ═══════════ HOTSPOT CUCINA ═══════════ -->
+  <svg class="livelloHotspot" id="hsCucina" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+
+    <g class="hot" data-id="portaCucina">
+      <polygon class="zona" points="140,376 255,322 255,509 140,562"/>
+      <text class="etichetta" x="200" y="299">Porta</text>
+    </g>
+
+    <g class="hot" data-id="pentola1">
+      <rect class="zona" x="523" y="293" width="135" height="118" rx="10"/>
+      <text class="etichetta" x="590" y="276">Pentolone</text>
+    </g>
+    <g class="hot" data-id="pentola2">
+      <rect class="zona" x="648" y="358" width="135" height="122" rx="10"/>
+      <text class="etichetta" x="715" y="342">Pentolone</text>
+    </g>
+    <g class="hot" data-id="pentola3">
+      <rect class="zona" x="773" y="428" width="135" height="128" rx="10"/>
+      <text class="etichetta" x="840" y="412">Pentolone</text>
+    </g>
+
+    <g class="hot" data-id="braci">
+      <polygon class="zona" points="500,450 850,650 805,700 462,492"/>
+      <text class="etichetta" x="600" y="430">Fornelli</text>
+    </g>
+
+    <g class="hot" data-id="mestolo">
+      <rect class="zona" x="508" y="555" width="85" height="62" rx="8"/>
+      <text class="etichetta" x="550" y="540">Tavolo</text>
+    </g>
+
+    <g class="hot" data-id="erbe">
+      <rect class="zona" x="495" y="95" width="195" height="128" rx="8"/>
+      <text class="etichetta" x="592" y="80">Erbe</text>
+    </g>
+
+    <g class="hot" data-id="mensola">
+      <rect class="zona" x="263" y="208" width="202" height="108" rx="8"/>
+      <text class="etichetta" x="364" y="192">Mensola</text>
+    </g>
+
+    <g class="hot" data-id="sacco">
+      <rect class="zona" x="618" y="693" width="100" height="88" rx="8"/>
+      <text class="etichetta" x="668" y="678">Sacco</text>
+    </g>
+  </svg>
+
+  <!-- ═══════════ HOTSPOT SOTTERRANEO ═══════════ -->
+  <svg class="livelloHotspot" id="hsSotterraneo" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+
+    <g class="hot" data-id="scale">
+      <polygon class="zona" points="40,420 250,380 280,640 130,775 40,775"/>
+      <text class="etichetta" x="160" y="362">Scale</text>
+    </g>
+
+    <g class="hot" data-id="gemma">
+      <rect class="zona" x="465" y="672" width="125" height="145" rx="10"/>
+      <text class="etichetta" x="528" y="655">Piedistallo</text>
+    </g>
+
+    <g class="hot" data-id="forziereHot">
+      <rect class="zona" x="608" y="770" width="190" height="140" rx="10"/>
+      <text class="etichetta" x="703" y="755">Forziere</text>
+    </g>
+
+    <g class="hot" data-id="torcia">
+      <rect class="zona" x="608" y="295" width="95" height="175" rx="8"/>
+      <text class="etichetta" x="655" y="278">Torcia</text>
+    </g>
+
+    <g class="hot" data-id="casse">
+      <rect class="zona" x="333" y="478" width="232" height="208" rx="10"/>
+      <text class="etichetta" x="449" y="462">Casse</text>
+    </g>
+
+    <g class="hot" data-id="botte">
+      <rect class="zona" x="733" y="572" width="148" height="125" rx="10"/>
+      <text class="etichetta" x="807" y="556">Botte</text>
+    </g>
+
+    <g class="hot" data-id="nicchia">
+      <rect class="zona" x="868" y="412" width="125" height="185" rx="10"/>
+      <text class="etichetta" x="930" y="396">Nicchia</text>
+    </g>
+  </svg>
+
+  <!-- HUD -->
+  <div id="titoloScena">La Taverna dell'Alba d'Oro</div>
+  <button id="btnInventario" onclick="apriInventario()">🎒 Inventario (0/3)</button>
+</div>
+
+<!-- POPUP -->
+<div id="velo">
+  <div id="popup"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══════════════════════ COSTANTI DI GIOCO ═══════════════════════ */
+
+const MAX_INVENTARIO = 3;   // pochi slot: ogni scelta pesa
+const DURATA_CANDELA = 1;   // una sola azione "sprecabile": alla seconda si spegne
+
+/* ═══════════════════════ DATI DI GIOCO ═══════════════════════ */
+
+const SCENE = {
+  taverna:         { titolo: "La Taverna dell'Alba d'Oro" },
+  cucina:          { titolo: "La Cucina" },
+  sotterraneo:     { titolo: "Il Sotterraneo" },
+  sotterraneoBuio: { titolo: "Il Sotterraneo" },
+  segrete:         { titolo: "Le Segrete del Castello" },
+};
+
+const INTRO_BASE = `Da settimane non si parla d'altro: il vecchio <b>Castello di Roccabruna</b>, in cima alla collina, custodirebbe i tesori del suo ultimo signore, scomparso senza eredi.<br><br>
+Come tanti altri avventurieri sei arrivato fin qui — ma il ponte levatoio è alzato da anni, le mura sono lisce come vetro e le guardie del borgo tengono d'occhio chiunque si avvicini ai bastioni.<br><br>
+Non ti è rimasto che fermarti alla <b>Taverna dell'Alba d'Oro</b>, ai piedi della collina. Eppure qualcosa ti dice che la via per il castello potrebbe nascondersi proprio qui, tra questi tavoli…`;
+
+const INTRO_FALLIMENTI = {
+  gamba: `Mentre entri nella taverna, sulla porta incroci un avventuriero <i>stranamente simile a te</i>, trasportato a braccia da due avventori: la gamba ingessata, lo sguardo amaro, diretto al sanatorio di Roccabruna. Chissà cosa gli sarà successo, là sotto…<br><br>`,
+  pazzia: `Mentre entri nella taverna, sulla porta incroci un avventuriero <i>stranamente simile a te</i>, gli occhi sbarrati, che farnetica di corridoi bui e diramazioni infinite. Due avventori lo accompagnano fuori, scuotendo la testa. Chissà cosa avrà visto, là sotto…<br><br>`,
+};
+
+const HOTSPOTS = {
+  /* ── Taverna ── */
+  porta: {
+    tipo: "uscita", nome: "Porta", sprite: "porta",
+    domanda: "Aprire la porta della cucina?",
+    descrizione: "La porta di quercia cigola. Dall'altra parte si sente odore di erbe e brodo caldo.",
+    destinazione: "cucina",
+    richiede: "grembiule",
+    bloccato: "«Ehi tu! Dove credi di andare? La cucina è solo per il personale!» tuona Baldric dal bancone, con un'occhiata che non ammette repliche. Forse dovresti parlargli… o trovare un altro modo.",
+  },
+  botola: {
+    tipo: "uscita", nome: "Botola",
+    domanda: "Aprire la botola?",
+    descrizione: "Il legno è consumato. Dall'oscurità sotto sale un soffio di aria fredda.",
+    destinazione: "sotterraneo",
+  },
+  oste: { tipo: "npc", nome: "Baldric l'Oste" },
+  inserviente: { tipo: "npc2", nome: "Inserviente" },
+  pergamena: {
+    tipo: "oggetto", id: "pergamena", nome: "Pergamena Antica", icona: "📜",
+    domanda: "Esaminare il vassoio sul bancone?",
+    descrizione: "Tra boccali e avanzi spunta una pergamena: simboli arcani si intrecciano attorno a una mappa parziale. Indica l'ingresso di un castello tra le nebbie…",
+  },
+  chiave: {
+    tipo: "oggetto", id: "chiave", nome: "Chiave Arrugginita", icona: "🗝️",
+    domanda: "Esaminare la lanterna a muro?",
+    descrizione: "La vecchia lanterna è spenta da tempo. Ma dietro, appesa a un chiodo, c'è una chiave di ferro consumato. Lo stemma inciso ricorda quello del Castello di Roccabruna.",
+  },
+  statuetta: {
+    tipo: "scenario", nome: "Statuetta dorata",
+    descrizione: "Una piccola statuetta dorata, lasciata sul tavolo. Raffigura un cavaliere inginocchiato. Qualcuno doveva tenerci molto… meglio non toccarla.",
+  },
+  finestra: {
+    tipo: "scenario", nome: "Finestra",
+    descrizione: "Oltre il vetro, la luna piena ritaglia la sagoma scura del Castello di Roccabruna, lassù in cima alla collina. Il ponte levatoio è alzato, nessuna luce alle finestre. Eppure il tesoro è là dentro… da qualche parte. E tu sei qui sotto, a guardarlo da una taverna.",
+  },
+  lampadario: { tipo: "lampadario", nome: "Lampadario" },
+
+  /* ── Cucina ── */
+  portaCucina: {
+    tipo: "uscita", nome: "Porta", sprite: "portaCucina",
+    domanda: "Tornare in taverna?",
+    descrizione: "La porta riporta nella sala principale della taverna.",
+    destinazione: "taverna",
+  },
+  pentola1: { tipo: "pentola", nome: "Pentolone", haChiave: false },
+  pentola2: { tipo: "pentola", nome: "Pentolone", haChiave: true  },
+  pentola3: { tipo: "pentola", nome: "Pentolone", haChiave: false },
+  braci: { tipo: "braci", nome: "Fornelli" },
+  mestolo: {
+    tipo: "oggetto", id: "mestolo", nome: "Mestolo di Legno", icona: "🥄",
+    domanda: "Esaminare il tavolo da lavoro?",
+    descrizione: "Tra brocche e stoviglie c'è un mestolo di legno dal manico lungo. Sembra fatto apposta per pescare in pentole profonde senza scottarsi.",
+  },
+  erbe: {
+    tipo: "oggetto", id: "erbe", nome: "Fascio di Erbe", icona: "🌿",
+    domanda: "Esaminare le erbe appese?",
+    descrizione: "Mazzi di erbe messi a seccare alla trave. Una in particolare ha un profumo intenso e stranamente familiare: non è un'erba da cucina ordinaria.",
+  },
+  mensola: {
+    tipo: "scenario", nome: "Mensola",
+    descrizione: "Vasi di terracotta allineati con cura: strutto, sale, miele. Il cuoco di questa taverna tiene alle sue scorte.",
+  },
+  sacco: {
+    tipo: "scenario", nome: "Sacco di farina",
+    descrizione: "Farina di segale, macinata grossa. Affondarci le mani sarebbe divertente, ma non è il momento.",
+  },
+
+  /* ── Sotterraneo ── */
+  scale: {
+    tipo: "uscita", nome: "Scale",
+    domanda: "Risalire le scale?",
+    descrizione: "I gradini di pietra salgono verso il chiarore freddo che filtra dall'alto.",
+    destinazione: "taverna",
+  },
+  gemma: {
+    tipo: "oggetto", id: "gemma", nome: "Gemma Opaca", icona: "💎",
+    domanda: "Esaminare il piedistallo?",
+    descrizione: "Su un piedistallo di pietra consumata è posata una piccola gemma grigia e spenta. Chi la lascerebbe qui, incustodita? Eppure, da un certo angolo, sembra pulsare di una debole luce viola…",
+  },
+  forziereHot: { tipo: "forziere", nome: "Forziere" },
+  torcia: {
+    tipo: "scenario", nome: "Torcia",
+    descrizione: "La torcia che hai acceso arde tranquilla. Ma qui sotto non c'è vento, e la fiamma danza come se respirasse…",
+  },
+  casse: {
+    tipo: "scenario", nome: "Casse",
+    descrizione: "Casse di legno inchiodate, con un marchio sbiadito a forma di torre. Troppo solide per aprirle a mani nude.",
+  },
+  botte: { tipo: "botte", nome: "Botte rovesciata" },
+  nicchia: { tipo: "nicchia", nome: "Nicchia ad arco" },
+};
+
+/* ── Testi ── */
+const TESTI_PENTOLA = {
+  esamina: "Il brodo ribolle denso e il vapore sale a nuvole. Il bordo di metallo è rovente. Vuoi frugare dentro?",
+  maniNude: "Appena infili la mano ti scotti! La ritiri di scatto, soffiando sulle dita. Così non se ne parla: serve qualcosa di adatto per frugare là dentro.",
+  chiaveTrovata: "Il mestolo urta qualcosa di metallico sul fondo… Una chiave annerita dal fumo! La ripeschi con cautela e la metti al sicuro.",
+  nienteQui: "Rimescoli a fondo con il mestolo: solo brodo, rape e qualche osso. Qui non c'è niente.",
+  giaTrovata: "Solo brodo che sobbolle. Quello che c'era da trovare, l'hai già trovato.",
+};
+
+const CHIAVE_CUCINA = { id: "chiaveCucina", nome: "Chiave Annerita", icona: "🔑" };
+const GREMBIULE     = { id: "grembiule",    nome: "Grembiule da Cuoco", icona: "🥼" };
+const CANDELA       = { id: "candela",      nome: "Candela accesa", icona: "🕯️" };
+const MAPPA         = { id: "mappa",        nome: "Mappa dei Cunicoli", icona: "🗺️" };
+
+const QUIZ = [
+  {
+    domanda: "«Vediamo se sai il fatto tuo. Primo: cosa NON deve mai mancare in un brodo che si rispetti?»",
+    risposte: ["Una moneta portafortuna", "Un osso saporito", "Un calzino, per il colore"],
+    giusta: 1,
+    sbagliata: "Baldric ti fissa. «…Fuori dalla mia taverna ci sono dei bambini che ne sanno più di te. Riproviamo.»",
+  },
+  {
+    domanda: "«Secondo: il brodo è venuto troppo salato. Che fai?»",
+    risposte: ["Ci butto una patata, assorbe il sale", "Aggiungo altro sale, così pareggia", "Lo vendo come “brodo di mare”"],
+    giusta: 0,
+    sbagliata: "Baldric si massaggia le tempie. «I miei clienti si fidano di me, sai? Riprova.»",
+  },
+  {
+    domanda: "«Ultima: qual è il segreto di un buon cuoco?»",
+    risposte: ["Non assaggiare mai, porta sfortuna", "Urlare alle pentole finché obbediscono", "Assaggiare sempre, a ogni passaggio"],
+    giusta: 2,
+    sbagliata: "Baldric alza un sopracciglio. «Mmh. Ti do un'ultima possibilità, straniero.»",
+  },
+];
+
+/* ═══════════════════════ STATO ═══════════════════════ */
+
+let scenaCorrente, raccolti, inventario, chiaveCucinaTrovata, quizIndice,
+    assunto, vintoRPS, candelaTimer, sotterraneoIlluminato, forziereAperto,
+    portaProvata, disceseBuio, tentativiNicchia, topoVisto;
+let ultimoFallimento = null; // ricordato tra una partita e l'altra
+
+/* ═══════════════════════ SALVATAGGIO STATO (localStorage) ═══════════════════════ */
+
+/* Salva inventario e oggetti raccolti prima di passare a segrete.html.
+   La chiave "aventuraStato" verrà letta all'avvio di segrete.html. */
+function salvaStato() {
+  const stato = {
+    inventario: inventario,          // array di {id, nome, icona}
+    raccolti:   [...raccolti],       // array di id già raccolti
+  };
+  try {
+    localStorage.setItem("aventuraStato", JSON.stringify(stato));
+  } catch(e) {
+    // localStorage non disponibile (es. file:// su alcuni browser):
+    // il passaggio avviene comunque, segrete.html partirà con inventario vuoto
+    console.warn("localStorage non disponibile:", e);
+  }
+}
+
+function statoIniziale() {
+  scenaCorrente = "taverna";
+  raccolti = new Set();
+  inventario = [];
+  chiaveCucinaTrovata = false;
+  quizIndice = 0;
+  assunto = false;
+  vintoRPS = false;
+  candelaTimer = -1;
+  sotterraneoIlluminato = false;
+  forziereAperto = false;
+  portaProvata = false;     // il giocatore ha già scoperto che la cucina è vietata?
+  disceseBuio = 0;          // discese al buio: alla seconda, gamba rotta
+  tentativiNicchia = 0;     // ingressi senza mappa: al secondo, follia
+  topoVisto = false;
+}
+
+function haOggetto(id) { return raccolti.has(id); }
+
+function daiOggetto(ogg) {
+  if (raccolti.has(ogg.id)) return true;
+  if (inventario.length >= MAX_INVENTARIO) {
+    popupEsito("Mani piene!",
+      `Hai già ${MAX_INVENTARIO} oggetti con te: non sapresti dove mettere anche questo. Apri l'inventario e lascia qualcosa, poi torna a prenderlo.`);
+    return false;
+  }
+  raccolti.add(ogg.id);
+  inventario.push({ ...ogg });
+  aggiornaBottoneInv();
+  return true;
+}
+
+function togliOggetto(id) {
+  const i = inventario.findIndex(o => o.id === id);
+  if (i >= 0) inventario.splice(i, 1);
+  raccolti.delete(id);
+  aggiornaBottoneInv();
+}
+
+/* ═══════════════════════ RIFERIMENTI ═══════════════════════ */
+
+const elVelo   = document.getElementById("velo");
+const elPopup  = document.getElementById("popup");
+const elTitolo = document.getElementById("titoloScena");
+const elBtnInv = document.getElementById("btnInventario");
+
+function ritratto(file) {
+  return `<div class="ritrattoBox"><img src="img/${file}" alt=""></div>`;
+}
+
+/* ═══════════════════════ SCENE ═══════════════════════ */
+
+function vaiAScena(id) {
+  scenaCorrente = id;
+  elTitolo.textContent = SCENE[id].titolo;
+
+  const t = (id === "taverna"), c = (id === "cucina"), s = (id === "sotterraneo");
+  document.getElementById("bgTaverna").classList.toggle("attiva", t);
+  document.getElementById("bgCucina").classList.toggle("attiva", c);
+  document.getElementById("bgSotterraneo").classList.toggle("attiva", s);
+  document.getElementById("hsTaverna").classList.toggle("attivo", t);
+  document.getElementById("hsCucina").classList.toggle("attivo", c);
+  document.getElementById("hsSotterraneo").classList.toggle("attivo", s);
+  document.getElementById("scBuio").classList.toggle("attivo", id === "sotterraneoBuio");
+  document.getElementById("scSegrete").classList.toggle("attivo", id === "segrete");
+
+  const pT = document.getElementById("porta");
+  const pC = document.getElementById("portaCucina");
+  pT.style.display = t ? "block" : "none";
+  pC.style.display = c ? "block" : "none";
+  pT.src = "img/porta-chiusa.png";
+  pC.src = "img/porta-chiusa.png";
+  document.getElementById("botola").style.display = t ? "block" : "none";
+  document.getElementById("oste").style.display = t ? "block" : "none";
+  document.getElementById("inserviente").style.display = t ? "block" : "none";
+
+  const fz = document.getElementById("forziere");
+  fz.style.display = s ? "block" : "none";
+  fz.src = forziereAperto ? "img/forziere-aperto.png" : "img/forziere-chiuso.png";
+}
+
+/* ═══════════════════════ POPUP ═══════════════════════ */
+
+let popupCorrente = null;
+let selezionePending = null;   // callback per la scelta di un oggetto
+
+function mostraPopup(html) {
+  elPopup.innerHTML = html;
+  elVelo.classList.add("attivo");
+}
+function chiudiPopup() {
+  elVelo.classList.remove("attivo");
+  popupCorrente = null;
+  selezionePending = null;
+}
+function popupEsito(titolo, testo) {
+  mostraPopup(`
+    ${titolo ? `<div class="nome">${titolo}</div>` : ""}
+    <div class="testo corsivo">${testo}</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>
+  `);
+}
+
+/* Scelta esplicita di un oggetto dall'inventario:
+   nessun uso automatico, il giocatore decide cosa adoperare */
+function scegliOggetto(titolo, testo, etichettaNiente, callback) {
+  selezionePending = callback;
+  const bottoni = inventario.map(o =>
+    `<button class="si" onclick="selezionaOggetto('${o.id}')">${o.icona} ${o.nome}</button>`
+  ).join("");
+  mostraPopup(`
+    <div class="nome">${titolo}</div>
+    <div class="testo corsivo">${testo}</div>
+    <div class="bottoni colonna">
+      ${bottoni}
+      <button class="no" onclick="selezionaOggetto(null)">${etichettaNiente}</button>
+    </div>
+  `);
+}
+function selezionaOggetto(id) {
+  const cb = selezionePending;
+  selezionePending = null;
+  if (cb) cb(id);
+}
+
+/* ═══════════════════════ GAME OVER E RIAVVIO ═══════════════════════ */
+
+function gameOver(tipo) {
+  ultimoFallimento = tipo;
+  const testi = {
+    gamba: "Nel buio fitto, il piede manca un gradino. Rotoli giù per la scala di pietra fino in fondo, e il crack che senti non lascia dubbi: la gamba è rotta. Passerai le prossime settimane al sanatorio di Roccabruna a recuperare le forze… e quando ne uscirai, altri avventurieri avranno già trovato la via per il castello, e il suo tesoro.",
+    pazzia: "Di nuovo nel dedalo, di nuovo senza una guida. Le diramazioni si moltiplicano, i muri sembrano respirare, la tua stessa eco ti insegue. Quando finalmente riemergi, all'alba, gli avventori ti trovano accucciato vicino alla botola, gli occhi sbarrati, mentre farnetichi di corridoi bui. Per te, niente più tesori.",
+  };
+  mostraPopup(`
+    <div class="nome">― La tua avventura finisce qui ―</div>
+    <div class="testo corsivo">${testi[tipo]}</div>
+    <div class="bottoni"><button class="si" onclick="riavvia()">⟳ Ricomincia</button></div>
+  `);
+}
+
+function riavvia() {
+  statoIniziale();
+  aggiornaBottoneInv();
+  vaiAScena("taverna");
+  mostraIntro();
+}
+
+function mostraIntro() {
+  const episodio = ultimoFallimento ? INTRO_FALLIMENTI[ultimoFallimento] : "";
+  mostraPopup(`
+    <div class="nome">― L'Avventura della Taverna ―</div>
+    <div class="testo corsivo" style="text-align:left;">${episodio}${INTRO_BASE}</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Inizia l'avventura</button></div>
+  `);
+}
+
+/* ═══════════════════════ LOGICA DELLA CANDELA ═══════════════════════ */
+
+function consumaCandela(idHotspot) {
+  if (candelaTimer < 0) return false;
+  if (idHotspot === "botola" || idHotspot === "lampadario") return false;
+  candelaTimer--;
+  if (candelaTimer < 0) {
+    togliOggetto("candela");
+    popupEsito("La candela si è spenta",
+      "Mentre ti attardi, la fiammella trema, sfrigola… e muore. Lo stoppino è consumato: questa candela ormai è cera inutile, la butti via. Se ti serve luce, dovrai prenderne un'altra — e non perdere tempo.");
+    return true;
+  }
+  return false;
+}
+
+/* ═══════════════════════ CLICK SUGLI HOTSPOT ═══════════════════════ */
+
+function clickHotspot(id) {
+  const h = HOTSPOTS[id];
+  if (!h) return;
+
+  if (consumaCandela(id)) return;
+
+  if (h.tipo === "scenario") { popupEsito(h.nome, h.descrizione); return; }
+  if (h.tipo === "npc")  { dialogoOste(); return; }
+  if (h.tipo === "npc2") { dialogoInserviente(); return; }
+  if (h.tipo === "lampadario") { dialogoLampadario(); return; }
+  if (h.tipo === "forziere") { dialogoForziere(); return; }
+
+  if (h.tipo === "botte") {
+    popupCorrente = { id, passo: "domanda" };
+    mostraPopup(`
+      <div class="testo">La botte rovesciata… si è appena <b>mossa</b>? Vuoi esaminarla da vicino?</div>
+      <div class="bottoni">
+        <button class="si" onclick="rispostaSi()">Sì</button>
+        <button class="no" onclick="chiudiPopup()">No</button>
+      </div>
+    `);
+    return;
+  }
+
+  if (h.tipo === "nicchia" || h.tipo === "braci") {
+    popupCorrente = { id, passo: "domanda" };
+    const dom = (h.tipo === "nicchia") ? "Entrare nella nicchia?" : "Avvicinarsi ai fornelli?";
+    mostraPopup(`
+      <div class="testo">${dom}</div>
+      <div class="bottoni">
+        <button class="si" onclick="rispostaSi()">Sì</button>
+        <button class="no" onclick="chiudiPopup()">No</button>
+      </div>
+    `);
+    return;
+  }
+
+  if (h.tipo === "oggetto" && raccolti.has(h.id)) return;
+
+  popupCorrente = { id, passo: "domanda" };
+  const domanda = (h.tipo === "pentola") ? "Avvicinarsi al pentolone?" : h.domanda;
+  mostraPopup(`
+    <div class="testo">${domanda}</div>
+    <div class="bottoni">
+      <button class="si" onclick="rispostaSi()">Sì</button>
+      <button class="no" onclick="chiudiPopup()">No</button>
+    </div>
+  `);
+}
+
+function rispostaSi() {
+  if (!popupCorrente) return;
+  const id = popupCorrente.id;
+  const h  = HOTSPOTS[id];
+
+  /* ── passo 1: dalla domanda alla descrizione ── */
+  if (popupCorrente.passo === "domanda") {
+    popupCorrente.passo = "descrizione";
+
+    if (h.tipo === "pentola") {
+      mostraPopup(`
+        <div class="testo corsivo">${TESTI_PENTOLA.esamina}</div>
+        <div class="bottoni">
+          <button class="si" onclick="rispostaSi()">Sì</button>
+          <button class="no" onclick="chiudiPopup()">No</button>
+        </div>
+      `);
+      return;
+    }
+
+    if (h.tipo === "braci") {
+      mostraPopup(`
+        <div class="testo corsivo">Sotto i pentoloni, tra i mattoni, ardono braci e pezzi di legna. Uno di quei tizzoni farebbe luce per ore… Vuoi prenderne uno?</div>
+        <div class="bottoni">
+          <button class="si" onclick="rispostaSi()">Sì</button>
+          <button class="no" onclick="chiudiPopup()">No</button>
+        </div>
+      `);
+      return;
+    }
+
+    if (h.tipo === "botte") {
+      mostraPopup(`
+        <div class="testo corsivo">Ti avvicini piano. Dall'interno della botte arriva un fruscio, poi un raspare di unghie sul legno. C'è qualcosa, là dentro. Ti chini a guardare?</div>
+        <div class="bottoni">
+          <button class="si" onclick="rispostaSi()">Sì</button>
+          <button class="no" onclick="chiudiPopup()">No</button>
+        </div>
+      `);
+      return;
+    }
+
+    if (h.tipo === "nicchia") {
+      mostraPopup(`
+        <div class="testo corsivo">L'apertura ad arco è più larga di quanto sembri: oltre, un cunicolo si infila nel fianco della collina e si dirama quasi subito in più direzioni, tutte ugualmente buie. Ti ci infili?</div>
+        <div class="bottoni">
+          <button class="si" onclick="rispostaSi()">Sì</button>
+          <button class="no" onclick="chiudiPopup()">No</button>
+        </div>
+      `);
+      return;
+    }
+
+    const azione = (h.tipo === "oggetto")
+      ? `Raccogliere <span style="color:var(--gold)">${h.nome}</span>?`
+      : "Procedere?";
+    mostraPopup(`
+      <div class="testo corsivo">${h.descrizione}</div>
+      <div class="testo">${azione}</div>
+      <div class="bottoni">
+        <button class="si" onclick="rispostaSi()">Sì</button>
+        <button class="no" onclick="chiudiPopup()">No</button>
+      </div>
+    `);
+    return;
+  }
+
+  /* ── passo intermedio della nicchia: punto di non ritorno ── */
+  if (popupCorrente.passo === "descrizione" && h.tipo === "nicchia") {
+    popupCorrente.passo = "conferma";
+    mostraPopup(`
+      <div class="nome">Sei sicuro?</div>
+      <div class="testo corsivo">Una volta dentro al dedalo, <b>potresti non riuscire a tornare indietro</b>. Se c'è qualcosa che ti serve — oggetti, informazioni, coraggio — questo è il momento di andarlo a prendere.</div>
+      <div class="bottoni">
+        <button class="si" onclick="rispostaSi()">Avanti, senza esitare</button>
+        <button class="no" onclick="chiudiPopup()">Meglio prepararsi ancora</button>
+      </div>
+    `);
+    return;
+  }
+
+  /* ── passo finale ── */
+  chiudiPopup();
+
+  if (h.tipo === "pentola") { risolviPentola(h); return; }
+
+  if (h.tipo === "braci") {
+    popupEsito("Ahia!",
+      "Allunghi le dita verso il tizzone più promettente e… scotta. Scotta da impazzire. Lo lasci cadere prima ancora di averlo sollevato, agitando la mano. Non c'è verso: a mani nude non lo porterai mai da nessuna parte.");
+    return;
+  }
+
+  if (h.tipo === "botte") { risolviBotte(); return; }
+
+  if (h.tipo === "nicchia") { risolviNicchia(); return; }
+
+  if (h.tipo === "oggetto") { daiOggetto(h); return; }
+
+  if (h.tipo === "uscita") {
+    if (h.richiede && !haOggetto(h.richiede)) {
+      portaProvata = true;   // ora il giocatore SA che serve un modo per entrare
+      popupEsito(null, h.bloccato);
+      return;
+    }
+    if (h.destinazione === "sotterraneo" && !sotterraneoIlluminato) {
+      discesaAlBuio();
+      return;
+    }
+    if (h.sprite) {
+      document.getElementById(h.sprite).src = "img/porta-aperta.png";
+      setTimeout(() => vaiAScena(h.destinazione), 700);
+    } else {
+      vaiAScena(h.destinazione);
+    }
+  }
+}
+
+/* ═══════════════════════ DISCESA NEL BUIO ═══════════════════════ */
+
+function discesaAlBuio() {
+  if (inventario.length > 0) {
+    scegliOggetto(
+      "Il buio là sotto è fitto",
+      "Dalla botola sale un'oscurità totale. Con cosa vuoi farti luce?",
+      "Niente: scendo al buio",
+      idScelto => {
+        if (idScelto === "candela") { accendiTorcia(); return; }
+        if (idScelto !== null) {
+          const o = inventario.find(x => x.id === idScelto);
+          popupEsito(null, `Sollevi ${o ? o.nome : "l'oggetto"} davanti a te… ma non fa luce un bel niente. Così non scendi da nessuna parte.`);
+          return;
+        }
+        scendiSenzaLuce();
+      }
+    );
+    return;
+  }
+  scendiSenzaLuce();
+}
+
+function accendiTorcia() {
+  togliOggetto("candela");
+  candelaTimer = -1;
+  sotterraneoIlluminato = true;
+  vaiAScena("sotterraneo");
+  popupEsito("Luce!",
+    "Scendi i gradini proteggendo la fiammella con la mano. In fondo, sulla parete, c'è una vecchia torcia: l'accosti alla candela e la fiamma prende vita, divorando quel che resta della cera. Il sotterraneo si rivela davanti a te.");
+}
+
+function scendiSenzaLuce() {
+  disceseBuio++;
+  if (disceseBuio >= 2) {
+    gameOver("gamba");
+    return;
+  }
+  vaiAScena("sotterraneoBuio");
+  popupEsito("Buio totale",
+    "Scendi pochi gradini e l'oscurità ti inghiotte. Non vedi a un palmo dal naso: un passo falso su questa scala e <b>potresti romperti l'osso del collo</b>. Risali finché sei in tempo, e trova qualcosa per far luce.");
+}
+
+/* ═══════════════════════ ENIGMA DELLE PENTOLE ═══════════════════════ */
+
+function risolviPentola(h) {
+  if (inventario.length === 0) {
+    popupEsito("Ahi!", TESTI_PENTOLA.maniNude);
+    return;
+  }
+  scegliOggetto(
+    "Frugare nel pentolone",
+    "Il brodo bolle, il metallo scotta. Con cosa vuoi frugare là dentro?",
+    "A mani nude",
+    idScelto => {
+      if (idScelto === null) { popupEsito("Ahi!", TESTI_PENTOLA.maniNude); return; }
+      if (idScelto !== "mestolo") {
+        const o = inventario.find(x => x.id === idScelto);
+        popupEsito(null, `Provi a frugare con ${o ? o.nome : "quell'oggetto"}… ma non è adatto a pescare nel brodo bollente. Rischi solo di rovinarlo, e rinunci.`);
+        return;
+      }
+      if (h.haChiave && !chiaveCucinaTrovata) {
+        if (daiOggetto(CHIAVE_CUCINA)) {
+          chiaveCucinaTrovata = true;
+          popupEsito("Trovata!", TESTI_PENTOLA.chiaveTrovata);
+        }
+        return;
+      }
+      popupEsito(null, chiaveCucinaTrovata ? TESTI_PENTOLA.giaTrovata : TESTI_PENTOLA.nienteQui);
+    }
+  );
+}
+
+/* ═══════════════════════ LA BOTTE E IL TOPO ═══════════════════════ */
+
+function risolviBotte() {
+  if (haOggetto("grembiule")) {
+    // il topo ruba il grembiule e l'enigma di accesso si riapre
+    togliOggetto("grembiule");
+    if (assunto)  assunto  = false;   // dovrà rifare il colloquio
+    if (vintoRPS) vintoRPS = false;   // o rigiocarsi il grembiule
+    topoVisto = true;
+    popupEsito("Il topo dispettoso!",
+      "Ti chini sulla botte e — ZAC! — un grosso topo grigio schizza fuori, ti si arrampica addosso, <b>azzanna il grembiule</b> e te lo strappa via, sparendo con il malloppo in una crepa del muro. Resti lì, di stucco. Per rientrare in cucina dovrai procurarti un altro grembiule… e qualcosa ti dice che dovrai riguadagnartelo.");
+    return;
+  }
+  if (!topoVisto) {
+    topoVisto = true;
+    popupEsito("Un topo!",
+      "Ti chini sulla botte e un grosso topo grigio schizza fuori all'improvviso, quasi facendoti cadere all'indietro, e sparisce in una crepa del muro. Il cuore ti batte forte. Solo un topo… ma che brutto scherzo.");
+    return;
+  }
+  popupEsito("Botte rovesciata",
+    "La botte è vuota e puzza di vino vecchio. Della bestiaccia che ci abitava, nessuna traccia… per fortuna.");
+}
+
+/* ═══════════════════════ LA NICCHIA E IL DEDALO ═══════════════════════ */
+
+function risolviNicchia() {
+  if (haOggetto("mappa")) {
+    salvaStato();   // ← salva inventario su localStorage prima di uscire
+    mostraPopup(`
+      <div class="nome">Il passaggio giusto</div>
+      <div class="testo corsivo">Srotoli la Mappa dei Cunicoli alla luce della torcia: il tracciato è chiaro. Seconda diramazione a destra, poi sempre dritto seguendo il muro che trasuda. Il cunicolo sale, sale… finché le pareti di roccia non diventano blocchi di pietra squadrata. Sei sotto il castello. Sei nelle sue segrete.</div>
+      <div class="bottoni"><button class="si" onclick="window.location.href='segrete.html'">Avanza nelle segrete →</button></div>
+    `);
+    return;
+  }
+  tentativiNicchia++;
+  if (tentativiNicchia >= 2) {
+    gameOver("pazzia");
+    return;
+  }
+  popupEsito("Perduto nei cunicoli",
+    "Avanzi a tentoni nel dedalo: ogni diramazione sembra uguale all'altra, ogni svolta ti confonde di più. Dopo un tempo che non sapresti misurare, sbuchi di nuovo… nel sotterraneo della taverna. Hai la gola secca e le mani che tremano: <b>un'altra volta là dentro senza una guida, e potresti non ritrovare la strada — né il senno</b>.");
+}
+
+/* ═══════════════════════ FORZIERE A DUE CHIAVI ═══════════════════════ */
+
+function dialogoForziere() {
+  if (forziereAperto) {
+    if (!haOggetto("mappa")) {
+      mostraPopup(`
+        <div class="nome">Forziere</div>
+        <div class="testo corsivo">Il forziere è aperto, le due chiavi ancora infilate nelle serrature. Sul fondo c'è la Mappa dei Cunicoli, dove l'avevi lasciata.</div>
+        <div class="bottoni">
+          <button class="si" onclick="chiudiPopup(); daiOggetto(MAPPA);">Prendi la mappa</button>
+          <button class="no" onclick="chiudiPopup()">Lasciala lì</button>
+        </div>
+      `);
+      return;
+    }
+    popupEsito("Forziere",
+      "Il forziere è aperto e ormai vuoto. Le due chiavi sono ancora infilate nelle serrature, come a ricordare che il suo segreto è già stato svelato.");
+    return;
+  }
+
+  const haEntrambe = haOggetto("chiave") && haOggetto("chiaveCucina");
+  if (!haEntrambe) {
+    const quante = (haOggetto("chiave") || haOggetto("chiaveCucina")) ? "una sola" : "nessuna";
+    popupEsito("Forziere",
+      `Un forziere massiccio, borchiato di ferro. Sul davanti non una ma <b>due serrature</b>, diverse tra loro: una rozza e arrugginita, l'altra fine e annerita dal fumo. Ne possiedi ${quante}: senza entrambe le chiavi, questo coperchio non si muove di un dito.`);
+    return;
+  }
+
+  mostraPopup(`
+    <div class="nome">Forziere</div>
+    <div class="testo corsivo">Due serrature, due chiavi. La Chiave Arrugginita scivola nella serratura rozza; la Chiave Annerita combacia con quella fine. Girarle insieme?</div>
+    <div class="bottoni">
+      <button class="si" onclick="apriForziere()">Sì, girale</button>
+      <button class="no" onclick="chiudiPopup()">Non ancora</button>
+    </div>
+  `);
+}
+
+function apriForziere() {
+  chiudiPopup();
+  forziereAperto = true;
+  togliOggetto("chiave");
+  togliOggetto("chiaveCucina");
+  document.getElementById("forziere").src = "img/forziere-aperto.png";
+  if (daiOggetto(MAPPA)) {
+    popupEsito("Il forziere si apre!",
+      "Doppio scatto, e il coperchio si solleva con un lamento di cardini. Dentro, avvolta in un telo cerato, una <b>Mappa dei Cunicoli</b>: il tracciato dei passaggi scavati sotto la collina, fino alle fondamenta del castello. Un percorso è segnato con inchiostro rosso, e parte… proprio dalla nicchia ad arco di questa stanza. Le chiavi restano infilate nelle serrature.");
+  } else {
+    popupEsito("Il forziere si apre!",
+      "Doppio scatto, e il coperchio si solleva. Dentro c'è una mappa avvolta in un telo cerato — ma hai le mani troppo piene per prenderla. Resta nel forziere, al sicuro, finché non fai spazio.");
+  }
+}
+
+/* ═══════════════════════ LAMPADARIO E CANDELA ═══════════════════════ */
+
+function dialogoLampadario() {
+  if (haOggetto("candela")) {
+    popupEsito("Lampadario",
+      "Hai già una candela accesa con te. Meglio usarla prima che si consumi.");
+    return;
+  }
+  mostraPopup(`
+    <div class="nome">Lampadario</div>
+    <div class="testo corsivo">Un lampadario di ottone con le candele accese, abbassato con una corda per la notte. Una di quelle candele si sfilerebbe facilmente… Vuoi prenderne una, accesa?</div>
+    <div class="bottoni">
+      <button class="si" onclick="prendiCandela()">Sì</button>
+      <button class="no" onclick="chiudiPopup()">No</button>
+    </div>
+  `);
+}
+
+function prendiCandela() {
+  chiudiPopup();
+  if (daiOggetto(CANDELA)) {
+    candelaTimer = DURATA_CANDELA;
+    popupEsito("Candela accesa",
+      "Sfili una candela dal lampadario, riparando la fiamma con il palmo. La cera è già mezza consumata: <b>non durerà a lungo</b>. Se hai in mente di usarla, fallo subito.");
+  }
+}
+
+/* ═══════════════════════ DIALOGO E QUIZ DELL'OSTE ═══════════════════════ */
+
+function dialogoOste() {
+  if (haOggetto("grembiule")) {
+    mostraPopup(`
+      ${ritratto("oste.png")}
+      <div class="nome">Baldric l'Oste</div>
+      <div class="testo corsivo">«Allora, garzone, come va? La cucina è di là — e occhio alle pentole, che scottano!» ride, asciugando un boccale.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>
+    `);
+    return;
+  }
+  if (!portaProvata) {
+    // il giocatore non sa ancora che la cucina è off-limits: chiacchiera generica
+    mostraPopup(`
+      ${ritratto("oste.png")}
+      <div class="nome">Baldric l'Oste</div>
+      <div class="testo corsivo">«Benvenuto, straniero! Un boccale? La zuppa stasera è delle buone, la cucina non si ferma mai.» Ti fa un cenno cordiale e torna ad asciugare boccali, canticchiando.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>
+    `);
+    return;
+  }
+  if (assunto) {
+    mostraPopup(`
+      ${ritratto("oste.png")}
+      <div class="nome">Baldric l'Oste</div>
+      <div class="testo corsivo">«Di nuovo senza grembiule?? Per fortuna ne tengo sempre uno di scorta. Ma è l'ultimo, intesi?»</div>
+      <div class="bottoni">
+        <button class="si" onclick="chiudiPopup(); daiOggetto(GREMBIULE);">Prendi il grembiule</button>
+        <button class="no" onclick="chiudiPopup()">Non ora</button>
+      </div>
+    `);
+    return;
+  }
+  mostraPopup(`
+    ${ritratto("oste.png")}
+    <div class="nome">Baldric l'Oste</div>
+    <div class="testo corsivo">«Te l'ho detto, amico: in cucina entra solo il personale.» Poi ti squadra da capo a piedi, pensieroso. «…A meno che. Il mio garzone è sparito proprio stanotte, e un paio di braccia mi servirebbero. Sai cavartela tra i fornelli?»</div>
+    <div class="bottoni colonna">
+      <button class="si" onclick="avviaQuiz()">«Mettimi alla prova.»</button>
+      <button class="no" onclick="chiudiPopup()">«Meglio di no.»</button>
+    </div>
+  `);
+}
+
+function avviaQuiz() {
+  quizIndice = 0;
+  mostraPopup(`
+    ${ritratto("oste.png")}
+    <div class="nome">Baldric l'Oste</div>
+    <div class="testo corsivo">«Vedremo.» incrocia le braccia. «Ti faccio tre domande. Sbagliale e te ne torni al tuo boccale.»</div>
+    <div class="bottoni"><button class="si" onclick="mostraDomandaQuiz()">«Sono pronto.»</button></div>
+  `);
+}
+
+function mostraDomandaQuiz() {
+  const q = QUIZ[quizIndice];
+  const bottoni = q.risposte.map((r, i) =>
+    `<button class="si" onclick="quizRispondi(${i})">${r}</button>`
+  ).join("");
+  mostraPopup(`
+    ${ritratto("oste.png")}
+    <div class="nome">Baldric l'Oste — domanda ${quizIndice + 1} di ${QUIZ.length}</div>
+    <div class="testo corsivo">${q.domanda}</div>
+    <div class="bottoni colonna">${bottoni}</div>
+  `);
+}
+
+function quizRispondi(i) {
+  const q = QUIZ[quizIndice];
+  if (i !== q.giusta) {
+    mostraPopup(`
+      ${ritratto("oste.png")}
+      <div class="nome">Baldric l'Oste</div>
+      <div class="testo corsivo">${q.sbagliata}</div>
+      <div class="bottoni"><button class="si" onclick="mostraDomandaQuiz()">Riprova</button></div>
+    `);
+    return;
+  }
+  quizIndice++;
+  if (quizIndice < QUIZ.length) {
+    mostraPopup(`
+      ${ritratto("oste.png")}
+      <div class="nome">Baldric l'Oste</div>
+      <div class="testo corsivo">«Mmh. Non male.» annuisce lentamente.</div>
+      <div class="bottoni"><button class="si" onclick="mostraDomandaQuiz()">Avanti</button></div>
+    `);
+    return;
+  }
+  assunto = true;
+  chiudiPopup();
+  if (daiOggetto(GREMBIULE)) {
+    popupEsito("Assunto!",
+      "Baldric ti lancia un grembiule da dietro il bancone. «Benvenuto a bordo, cuoco di fortuna. La cucina è quella porta là. E non toccare niente che non ti riguardi!» Hai ottenuto il Grembiule da Cuoco.");
+  } else {
+    popupEsito("Assunto… quasi",
+      "Baldric fa per lanciarti il grembiule, poi si ferma guardando le tue mani occupate. «E dove lo metti? Torna quando ti sei liberato di qualcosa, il grembiule te lo tengo io.»");
+  }
+}
+
+/* ═══════════════════════ INSERVIENTE E SASSO-CARTA-FORBICI ═══════════════════════ */
+
+const RPS = ["Sasso", "Carta", "Forbici"];
+const RPS_ICONE = ["✊", "✋", "✌️"];
+const RPS_BATTE = { 0: 2, 1: 0, 2: 1 };
+
+function dialogoInserviente() {
+  if (haOggetto("grembiule")) {
+    mostraPopup(`
+      ${ritratto("inserviente.png")}
+      <div class="nome">Inserviente</div>
+      <div class="testo corsivo">«Ah, vedo che il grembiule ce l'hai già.» sbadiglia, appoggiato alla scopa. «Allora in bocca al lupo con le pentole di Baldric. E coi suoi urli.»</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>
+    `);
+    return;
+  }
+  if (!portaProvata) {
+    mostraPopup(`
+      ${ritratto("inserviente.png")}
+      <div class="nome">Inserviente</div>
+      <div class="testo corsivo">Il ragazzo spazza svogliato, con le occhiaie di chi lavora da troppe ore. «Notte lunga…» borbotta tra sé, senza quasi degnarti di uno sguardo.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>
+    `);
+    return;
+  }
+  if (vintoRPS) {
+    mostraPopup(`
+      ${ritratto("inserviente.png")}
+      <div class="nome">Inserviente</div>
+      <div class="testo corsivo">«Il mio grembiule di ricambio te lo sei già giocato e l'hai pure perso?» scuote la testa. «Tieni, riprenditelo. Ma è l'ultima volta.»</div>
+      <div class="bottoni">
+        <button class="si" onclick="chiudiPopup(); daiOggetto(GREMBIULE);">Prendi il grembiule</button>
+        <button class="no" onclick="chiudiPopup()">Non ora</button>
+      </div>
+    `);
+    return;
+  }
+  mostraPopup(`
+    ${ritratto("inserviente.png")}
+    <div class="nome">Inserviente</div>
+    <div class="testo corsivo">«Ho sentito Baldric urlare…» Il ragazzo si appoggia alla scopa con un mezzo sorriso furbo. «Ti serve un grembiule per la cucina, scommetto. Guarda caso, ne ho uno di ricambio. Te lo giochi a sasso-carta-forbici? Se vinci è tuo. Se perdi… be', mi tieni compagnia finché non rivinco io.»</div>
+    <div class="bottoni colonna">
+      <button class="si" onclick="mostraRPS()">«Ci sto. Giochiamo.»</button>
+      <button class="no" onclick="chiudiPopup()">«Magari più tardi.»</button>
+    </div>
+  `);
+}
+
+function mostraRPS() {
+  const bottoni = RPS.map((n, i) =>
+    `<button class="si" onclick="rpsGioca(${i})">${RPS_ICONE[i]} ${n}</button>`
+  ).join("");
+  mostraPopup(`
+    ${ritratto("inserviente.png")}
+    <div class="nome">Sasso, carta, forbici!</div>
+    <div class="testo corsivo">«Uno… due… tre!» Cosa giochi?</div>
+    <div class="bottoni">${bottoni}</div>
+  `);
+}
+
+function rpsGioca(scelta) {
+  const sua = Math.floor(Math.random() * 3);
+  const esito = (scelta === sua) ? "pari" : (RPS_BATTE[scelta] === sua ? "vinto" : "perso");
+
+  if (esito === "pari") {
+    mostraPopup(`
+      ${ritratto("inserviente.png")}
+      <div class="nome">Pari!</div>
+      <div class="testo corsivo">Tu: ${RPS_ICONE[scelta]} ${RPS[scelta]} — Lui: ${RPS_ICONE[sua]} ${RPS[sua]}. «Pari! Ancora!»</div>
+      <div class="bottoni"><button class="si" onclick="mostraRPS()">Rigioca</button></div>
+    `);
+    return;
+  }
+  if (esito === "perso") {
+    mostraPopup(`
+      ${ritratto("inserviente.png")}
+      <div class="nome">Perso!</div>
+      <div class="testo corsivo">Tu: ${RPS_ICONE[scelta]} ${RPS[scelta]} — Lui: ${RPS_ICONE[sua]} ${RPS[sua]}. Il ragazzo ghigna soddisfatto. «Eh no, amico. Si rigioca?»</div>
+      <div class="bottoni">
+        <button class="si" onclick="mostraRPS()">Rigioca</button>
+        <button class="no" onclick="chiudiPopup()">Basta per ora</button>
+      </div>
+    `);
+    return;
+  }
+  vintoRPS = true;
+  chiudiPopup();
+  if (daiOggetto(GREMBIULE)) {
+    popupEsito("Vinto!",
+      `Tu: ${RPS_ICONE[scelta]} ${RPS[scelta]} — Lui: ${RPS_ICONE[sua]} ${RPS[sua]}. Il ragazzo sospira e ti porge un grembiule ripiegato. «Uff. Tieni, l'avevo quasi nuovo. Con quello addosso nessuno ti dirà niente, nemmeno Baldric.» Hai ottenuto il Grembiule da Cuoco.`);
+  } else {
+    popupEsito("Vinto… ma a mani piene",
+      `Tu: ${RPS_ICONE[scelta]} ${RPS[scelta]} — Lui: ${RPS_ICONE[sua]} ${RPS[sua]}. Hai vinto! Ma hai le mani troppo piene per prendere il grembiule. «Te lo tengo da parte,» dice il ragazzo. «Passa quando ti sei liberato.»`);
+  }
+}
+
+/* ═══════════════════════ INVENTARIO ═══════════════════════ */
+
+function aggiornaBottoneInv() {
+  elBtnInv.textContent = `🎒 Inventario (${inventario.length}/${MAX_INVENTARIO})`;
+}
+
+function apriInventario() {
+  const righe = inventario.length === 0
+    ? `<div id="invVuoto">Nessun oggetto raccolto.</div>`
+    : `<div id="grigliaInv">` + inventario.map((o, i) =>
+        `<div class="oggettoInv">
+           <span class="ic">${o.icona}</span>
+           <span class="nm">${o.nome}</span>
+           <button onclick="chiediLascia(${i})">Lascia</button>
+         </div>`
+      ).join("") + `</div>`;
+
+  mostraPopup(`
+    <div id="pannelloInv">
+      <h3>― Inventario ―</h3>
+      <div id="contaSlot">${inventario.length} / ${MAX_INVENTARIO} spazi occupati</div>
+      ${righe}
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+    </div>
+  `);
+}
+
+function chiediLascia(indice) {
+  const o = inventario[indice];
+  if (!o) return;
+  mostraPopup(`
+    <div class="nome">Lasciare ${o.nome}?</div>
+    <div class="testo corsivo">${o.icona} Se lo abbandoni qui, potrai recuperarlo tornando dove l'avevi trovato.</div>
+    <div class="bottoni">
+      <button class="si" onclick="confermaLascia(${indice})">Sì, lascialo</button>
+      <button class="no" onclick="apriInventario()">No, tienilo</button>
+    </div>
+  `);
+}
+
+function confermaLascia(indice) {
+  const o = inventario[indice];
+  if (!o) { apriInventario(); return; }
+  if (o.id === "chiaveCucina") chiaveCucinaTrovata = false;
+  if (o.id === "candela")      candelaTimer = -1;
+  togliOggetto(o.id);
+  apriInventario();
+}
+
+/* ═══════════════════════ COLLEGAMENTI E AVVIO ═══════════════════════ */
+
+document.querySelectorAll(".hot").forEach(g => {
+  g.addEventListener("click", () => clickHotspot(g.dataset.id));
+});
+elVelo.addEventListener("click", e => { if (e.target === elVelo) chiudiPopup(); });
+
+statoIniziale();
+aggiornaBottoneInv();
+vaiAScena("taverna");
+mostraIntro();
+</script>
+
+</body>
+</html>

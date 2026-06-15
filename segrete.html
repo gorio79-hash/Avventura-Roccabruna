@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--
+  L'Avventura della Taverna — Stage 2: Le Segrete del Castello
+  Progetto di [IL TUO NOME] — sviluppato con Claude (Anthropic)
+  © [ANNO] [IL TUO NOME]. Tutti i diritti riservati.
+-->
+<meta name="author" content="[IL TUO NOME]">
+<meta name="description" content="Avventura grafica punta-e-clicca educativa — Stage 2">
+<title>Le Segrete del Castello — Stage 2</title>
+<style>
+  :root { --gold: #C48A28; --cream: #F2DDAA; --panel: #150C03; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; background:#070503; font-family:Palatino,Georgia,serif; user-select:none; -webkit-user-select:none; }
+  #stage { position:relative; width:min(100vw,100vh,1024px); aspect-ratio:1/1; overflow:hidden; background:#000; }
+  #stage img { image-rendering:pixelated; }
+  .bg { position:absolute; inset:0; width:100%; height:100%; display:none; }
+  .bg.attiva { display:block; }
+  .livelloHotspot { position:absolute; inset:0; width:100%; height:100%; display:none; }
+  .livelloHotspot.attivo { display:block; }
+  .hot { cursor:pointer; }
+  .hot .zona { fill:transparent; stroke:none; transition:fill .2s; }
+  .hot:hover .zona { fill:rgba(196,138,40,.11); stroke:rgba(196,138,40,.45); stroke-width:2px; }
+  .hot .etichetta { display:none; fill:var(--cream); font-size:26px; font-family:Palatino,Georgia,serif; text-anchor:middle; paint-order:stroke; stroke:#000; stroke-width:5px; pointer-events:none; }
+  .hot:hover .etichetta { display:block; }
+
+  /* HUD */
+  #titoloScena { position:absolute; top:12px; left:16px; color:var(--cream); font-size:clamp(15px,2.2vw,22px); letter-spacing:.05em; text-shadow:0 0 14px #000,0 0 4px #000; pointer-events:none; }
+  #btnInventario { position:absolute; bottom:14px; right:14px; padding:9px 22px; font-family:Palatino,Georgia,serif; font-size:clamp(13px,1.9vw,17px); cursor:pointer; border-radius:3px; background:#382010; color:var(--cream); border:2px solid var(--gold); letter-spacing:.05em; box-shadow:0 0 18px rgba(0,0,0,.9); }
+  #avvisoMaledizione { position:absolute; top:12px; right:14px; display:none; background:rgba(40,8,8,.92); border:1px solid #C44018; border-radius:3px; padding:5px 12px; color:#F09060; font-size:13px; pointer-events:none; letter-spacing:.04em; }
+
+  /* MINIMAPPA */
+  #minimappa { position:absolute; bottom:14px; left:14px; background:rgba(21,12,3,.88); border:1px solid var(--gold); border-radius:4px; padding:6px 10px 8px; pointer-events:none; }
+  .mmTitolo { color:var(--gold); font-size:10px; letter-spacing:.1em; text-transform:uppercase; text-align:center; font-family:Palatino,Georgia,serif; margin-bottom:5px; }
+  .mmRiga { display:flex; align-items:center; gap:5px; }
+  .mmStanza { font-family:Palatino,Georgia,serif; font-size:11px; color:#3A2A12; white-space:nowrap; letter-spacing:.02em; transition:color .4s; }
+  .mmStanza.visitata { color:#7A6A4A; }
+  .mmStanza.corrente { color:var(--gold); font-weight:bold; }
+  .mmFreccia { color:#2A1A08; font-size:10px; }
+  .mmFreccia.visibile { color:#4A3A1A; }
+
+  /* VITTORIA */
+  #scVittoria { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; gap:20px; text-align:center; padding:28px; color:var(--cream); background:radial-gradient(ellipse at center,#1E1408 0%,#050204 80%); }
+  #scVittoria.attivo { display:flex; }
+  #scVittoria h2 { color:var(--gold); margin:0; font-weight:normal; letter-spacing:.1em; font-size:24px; }
+  #scVittoria p { max-width:500px; line-height:1.65; font-style:italic; opacity:.88; margin:0; font-size:15px; }
+  #scVittoria .nota { font-size:12px; opacity:.5; font-style:normal; }
+  #scVittoria button { padding:9px 22px; font-family:inherit; font-size:16px; cursor:pointer; border-radius:3px; background:#382010; color:var(--cream); border:2px solid var(--gold); }
+
+  /* POPUP */
+  #velo { position:fixed; inset:0; background:rgba(0,0,0,.78); display:none; align-items:center; justify-content:center; z-index:200; }
+  #velo.attivo { display:flex; }
+  #popup { background:var(--panel); border:2px solid var(--gold); border-radius:6px; padding:28px 34px; max-width:460px; width:90%; text-align:center; color:var(--cream); font-size:18px; line-height:1.6; box-shadow:0 0 60px rgba(196,138,40,.15); max-height:85vh; overflow-y:auto; }
+  #popup .nome { color:var(--gold); font-size:20px; margin-bottom:12px; letter-spacing:.05em; }
+  #popup .testo { margin-bottom:22px; }
+  #popup .testo.corsivo { font-style:italic; }
+  #popup .bottoni { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  #popup .bottoni.colonna { flex-direction:column; align-items:stretch; }
+  #popup button { padding:9px 22px; font-family:inherit; font-size:16px; cursor:pointer; border-radius:3px; color:var(--cream); letter-spacing:.05em; }
+  #popup .si { background:#382010; border:2px solid var(--gold); }
+  #popup .no { background:#380A08; border:2px solid #7A2A1A; }
+  .ritrattoBox { width:92px; height:92px; border:2px solid var(--gold); border-radius:6px; margin:0 auto 14px; background:#1A0C04; display:flex; align-items:center; justify-content:center; font-size:50px; }
+
+  /* INVENTARIO */
+  #pannelloInv h3 { color:var(--gold); text-align:center; font-weight:normal; margin:0 0 6px; letter-spacing:.1em; }
+  #contaSlot { text-align:center; font-size:13px; color:#9A8A6A; margin-bottom:14px; }
+  #grigliaInv { display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:18px; }
+  .oggettoInv { background:#240E02; border:1px solid #5A3818; border-radius:4px; padding:8px 12px; display:flex; align-items:center; gap:10px; font-size:14px; text-align:left; }
+  .oggettoInv span.ic { font-size:24px; }
+  .oggettoInv .nm { flex:1; }
+  .oggettoInv .btnGruppo { display:flex; gap:4px; }
+  .oggettoInv button { padding:5px 10px !important; font-size:12px !important; border-radius:3px; cursor:pointer; color:var(--cream); }
+  .oggettoInv .btnCombina { background:#1A2410; border:1px solid #4A7018; }
+  .oggettoInv .btnLascia  { background:#380A08; border:1px solid #7A2A1A; }
+  #invVuoto { text-align:center; font-style:italic; color:#7A6A5A; margin-bottom:18px; }
+  .inputTesto { width:100%; background:#1A0C04; border:1px solid var(--gold); color:var(--cream); padding:10px 12px; font-family:Palatino,Georgia,serif; font-size:16px; border-radius:3px; margin:10px 0; }
+  .inputTesto:focus { outline:none; border-color:#F2DDAA; }
+  .inputTesto::placeholder { color:#5A4A30; font-style:italic; }
+
+  /* Watermark / crediti */
+  #btnCrediti {
+    position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    background:none; border:none; cursor:pointer;
+    color:#3A2A14; font-family:Palatino,Georgia,serif;
+    font-size:11px; letter-spacing:.08em;
+    transition:color .25s; padding:2px 8px; white-space:nowrap;
+  }
+  #btnCrediti:hover { color:var(--cream); }
+
+  /* ══════════════════════════════
+     SPRITE LAYERS
+     Posizioni in % su 1024x1024.
+     Hotspot zone: 100x100px (ridotte da 160x160).
+     Rotazioni impronte: 0=su/avanti, 180=giu/indietro.
+     Da calibrare sul fondale reale durante il playtesting.
+  ══════════════════════════════ */
+  .spriteLayer { position:absolute; inset:0; width:100%; height:100%; display:none; pointer-events:none; }
+  .spriteLayer.attivo { display:block; }
+
+  @keyframes pulsaSprite {
+    0%,100% { transform:translate(-50%,-50%) scale(1);    opacity:.88; }
+    50%      { transform:translate(-50%,-50%) scale(1.09); opacity:1;   }
+  }
+  .spr { position:absolute; pointer-events:none; image-rendering:pixelated; animation:pulsaSprite 2.6s ease-in-out infinite; }
+  .spr-npc  { width:7.81%; }
+  .spr-obj  { width:8.79%; }
+  .spr-puzz { width:8.79%; }
+
+  @keyframes pulsaImpronte {
+    0%,100% { opacity:.72; }
+    50%      { opacity:1;   }
+  }
+  .impronte { position:absolute; pointer-events:none; display:flex; gap:5px; animation:pulsaImpronte 2s ease-in-out infinite; }
+  .impronte img { width:28px; image-rendering:pixelated; }
+  /* Lente di ingrandimento: dimensione ridotta rispetto agli altri sprite puzzle */
+  .spr-esplora { width:5%; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- FONDALI -->
+  <img class="bg attiva" id="bgSegrete"     src="img/segrete.png"      alt="">
+  <img class="bg"        id="bgSalaTorture" src="img/sala-torture.png" alt="">
+  <img class="bg"        id="bgFogne"       src="img/fogne.png"        alt="">
+  <img class="bg"        id="bgLaboratorio" src="img/laboratorio.png"  alt="">
+
+  <!-- VITTORIA -->
+  <div id="scVittoria">
+    <h2>&#8213; Il Tesoro di Roccabruna &#8213;</h2>
+    <p>Oltre la porta si apre una sala che il tempo ha preservato: mensole di quercia cariche di pergamene, forzieri lucidati, e al centro &#8212; su un leggio di pietra &#8212; il <b>Sigillo del Signore di Roccabruna</b>. Ce l&#39;hai fatta.</p>
+    <p class="nota">Stage 3 in sviluppo. Il tuo progresso viene salvato.</p>
+    <button onclick="concludiStage2()">Salva e concludi &rarr;</button>
+  </div>
+
+  <!-- ════ SPRITE LAYER: SEGRETE ════ -->
+  <!-- lucchettoCella: cx=875 cy=556 | mucchioPietri: cx=787 cy=812 -->
+  <div class="spriteLayer attivo" id="spSegrete">
+    <img src="img/aldric-npc.png"     class="spr spr-npc"  style="left:71.97%;top:41.21%;" alt="">
+    <img src="img/lucchetto-puzz.png" class="spr spr-puzz" style="left:85.45%;top:54.30%;" alt="">
+    <img src="img/esplora.png"        class="spr spr-esplora" style="left:30.86%;top:28.03%;" alt="">
+    <img src="img/esplora.png"        class="spr spr-esplora" style="left:76.86%;top:79.30%;" alt="">
+    <!-- orme corridoioAvanti -->
+    <div class="impronte" style="left:53.52%;top:31.25%;transform:translate(-50%,-50%) rotate(0deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+    <!-- orme uscitaStage1 -->
+    <div class="impronte" style="left:31.05%;top:83.98%;transform:translate(-50%,-50%) rotate(180deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+  </div>
+
+  <!-- ════ SPRITE LAYER: SALA TORTURE ════ -->
+  <!-- barattoli: nessuno sprite (file non disponibile) -->
+  <div class="spriteLayer" id="spSalaTorture">
+    <img src="img/arachne-npc.png"    class="spr spr-npc"  style="left:90.14%;top:12.40%;" alt="">
+    <img id="spr-martello" src="img/martello-obj.png" class="spr spr-obj" style="left:39.26%;top:52.54%;" alt="">
+    <img id="spr-osso"     src="img/osso-obj.png"     class="spr spr-obj" style="left:20.61%;top:76.07%;" alt="">
+    <!-- orme versoDiLab -->
+    <div class="impronte" style="left:66.80%;top:33.40%;transform:translate(-50%,-50%) rotate(0deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+    <!-- orme versoFogne -->
+    <div class="impronte" style="left:74.41%;top:77.64%;transform:translate(-50%,-50%) rotate(180deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+    <!-- orme ritornoSegrete -->
+    <div class="impronte" style="left:42.29%;top:89.36%;transform:translate(-50%,-50%) rotate(180deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+  </div>
+
+  <!-- ════ SPRITE LAYER: FOGNE ════ -->
+  <!-- canaleFogne: usa esplora.png come indicatore hotspot -->
+  <div class="spriteLayer" id="spFogne">
+    <img src="img/topinus-npc.png"    class="spr spr-npc"  style="left:13.87%;top:66.02%;" alt="">
+    <img id="spr-chiodi" src="img/chiodi-obj.png" class="spr spr-obj" style="left:30.96%;top:62.60%;" alt="">
+    <img src="img/esplora.png"        class="spr spr-esplora" style="left:55.47%;top:71.58%;" alt="">
+    <img src="img/zaino-obj.png"      class="spr spr-obj"  style="left:58.59%;top:88.97%;" alt="">
+    <!-- orme tunnelRitorno -->
+    <div class="impronte" style="left:40.63%;top:46.68%;transform:translate(-50%,-50%) rotate(0deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+  </div>
+
+  <!-- ════ SPRITE LAYER: LABORATORIO ════ -->
+  <!-- easterEgg: nessuno sprite fisso (l'hotspot e' scopribile tramite esplorazione) -->
+  <div class="spriteLayer" id="spLaboratorio">
+    <img src="img/serratura-puzz.png"  class="spr spr-puzz" style="left:84.28%;top:54.78%;" alt="">
+    <img src="img/mortaio-puzz.png"    class="spr spr-puzz" style="left:67.09%;top:82.13%;" alt="">
+    <img src="img/pergamena-puzz.png"  class="spr spr-puzz" style="left:66.60%;top:44.63%;" alt="">
+    <img src="img/sportello-puzz.png"  class="spr spr-puzz" style="left:93.36%;top:66.31%;" alt="">
+    <!-- spr-legno: da aggiungere quando legno-obj.png sarà disponibile -->
+    <!-- orme ritornoLabTorture -->
+    <div class="impronte" style="left:40.04%;top:43.95%;transform:translate(-50%,-50%) rotate(180deg);">
+      <img src="img/impronta-sx.png" alt=""><img src="img/impronta-dx.png" alt="">
+    </div>
+  </div>
+
+  <!-- ════════════ HOTSPOT SEGRETE ════════════ -->
+  <!-- Zone ridotte a 100x100px (centrate sullo stesso cx,cy) -->
+  <!-- lucchettoCella e mucchioPietri: nuove coordinate da playtesting -->
+  <svg class="livelloHotspot attivo" id="hsSegrete" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+    <g class="hot" data-id="corridoioAvanti">
+      <rect class="zona" x="498" y="270" width="100" height="100"/>
+      <text class="etichetta" x="548" y="253">&rarr; Sala Torture</text>
+    </g>
+    <g class="hot" data-id="aldric">
+      <rect class="zona" x="687" y="372" width="100" height="100"/>
+      <text class="etichetta" x="737" y="355">Cella</text>
+    </g>
+    <g class="hot" data-id="lucchettoCella">
+      <rect class="zona" x="825" y="506" width="100" height="100"/>
+      <text class="etichetta" x="875" y="489">Lucchetto</text>
+    </g>
+    <g class="hot" data-id="catene">
+      <rect class="zona" x="266" y="237" width="100" height="100"/>
+      <text class="etichetta" x="316" y="220">Catene</text>
+    </g>
+    <g class="hot" data-id="uscitaStage1">
+      <rect class="zona" x="268" y="810" width="100" height="100"/>
+      <text class="etichetta" x="318" y="793">&darr; Torna alla taverna</text>
+    </g>
+    <g class="hot" data-id="mucchioPietri">
+      <rect class="zona" x="737" y="762" width="100" height="100"/>
+      <text class="etichetta" x="787" y="745">Mucchio di sassi</text>
+    </g>
+  </svg>
+
+  <!-- ════════════ HOTSPOT SALA TORTURE ════════════ -->
+  <svg class="livelloHotspot" id="hsSalaTorture" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+    <g class="hot" data-id="versoDiLab">
+      <rect class="zona" x="634" y="292" width="100" height="100"/>
+      <text class="etichetta" x="684" y="275">&rarr; Laboratorio</text>
+    </g>
+    <g class="hot" data-id="barattoli">
+      <rect class="zona" x="813" y="478" width="100" height="100"/>
+      <text class="etichetta" x="863" y="461">Barattoli</text>
+    </g>
+    <g class="hot" data-id="arachne">
+      <rect class="zona" x="873" y="77"  width="100" height="100"/>
+      <text class="etichetta" x="923" y="60">Ragnatela</text>
+    </g>
+    <g class="hot" data-id="tavolo">
+      <rect class="zona" x="352" y="488" width="100" height="100"/>
+      <text class="etichetta" x="402" y="471">Tavolo</text>
+    </g>
+    <g class="hot" data-id="ossoMaledetto">
+      <rect class="zona" x="161" y="729" width="100" height="100"/>
+      <text class="etichetta" x="211" y="712">Osso</text>
+    </g>
+    <g class="hot" data-id="versoFogne">
+      <rect class="zona" x="712" y="745" width="100" height="100"/>
+      <text class="etichetta" x="762" y="728">&darr; Fogne</text>
+    </g>
+    <g class="hot" data-id="ritornoSegrete">
+      <rect class="zona" x="383" y="865" width="100" height="100"/>
+      <text class="etichetta" x="433" y="848">&larr; Segrete</text>
+    </g>
+  </svg>
+
+  <!-- ════════════ HOTSPOT FOGNE ════════════ -->
+  <svg class="livelloHotspot" id="hsFogne" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+    <g class="hot" data-id="barile">
+      <rect class="zona" x="92"  y="626" width="100" height="100"/>
+      <text class="etichetta" x="142" y="609">Barile</text>
+    </g>
+    <g class="hot" data-id="canaleFogne">
+      <rect class="zona" x="518" y="683" width="100" height="100"/>
+      <text class="etichetta" x="568" y="666">Fiume verde</text>
+    </g>
+    <g class="hot" data-id="tunnelRitorno">
+      <rect class="zona" x="366" y="428" width="100" height="100"/>
+      <text class="etichetta" x="416" y="411">&larr; Sala Torture</text>
+    </g>
+    <g class="hot" data-id="zaino">
+      <rect class="zona" x="550" y="861" width="100" height="100"/>
+      <text class="etichetta" x="600" y="844">Zaino</text>
+    </g>
+    <g class="hot" data-id="scheletroChiodi">
+      <rect class="zona" x="267" y="591" width="100" height="100"/>
+      <text class="etichetta" x="317" y="574">Scheletro</text>
+    </g>
+  </svg>
+
+  <!-- ════════════ HOTSPOT LABORATORIO ════════════ -->
+  <svg class="livelloHotspot" id="hsLaboratorio" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">
+    <g class="hot" data-id="ritornoLabTorture">
+      <rect class="zona" x="360" y="400" width="100" height="100"/>
+      <text class="etichetta" x="410" y="383">&larr; Sala Torture</text>
+    </g>
+    <g class="hot" data-id="serratura">
+      <rect class="zona" x="813" y="511" width="100" height="100"/>
+      <text class="etichetta" x="863" y="494">Serratura</text>
+    </g>
+    <g class="hot" data-id="mortaio">
+      <rect class="zona" x="637" y="791" width="100" height="100"/>
+      <text class="etichetta" x="687" y="774">Mortaio</text>
+    </g>
+    <g class="hot" data-id="pergamenaLab">
+      <rect class="zona" x="632" y="407" width="100" height="100"/>
+      <text class="etichetta" x="682" y="390">Pergamena</text>
+    </g>
+    <g class="hot" data-id="easterEgg">
+      <rect class="zona" x="383" y="537" width="100" height="100"/>
+      <text class="etichetta" x="433" y="520">Simbolo ?</text>
+    </g>
+    <g class="hot" data-id="sportelloLegno">
+      <rect class="zona" x="900" y="629" width="100" height="100"/>
+      <text class="etichetta" x="950" y="612">Sportello</text>
+    </g>
+  </svg>
+
+  <!-- HUD -->
+  <div id="titoloScena">Le Segrete del Castello</div>
+  <div id="avvisoMaledizione">&#9760; Maledetto &#8212; <span id="timerMal">3</span> azioni</div>
+  <button id="btnInventario" onclick="apriInventario()">&#127820; Inventario (0/3)</button>
+  <button id="btnCrediti" onclick="mostraCrediti()">&#169; [Il tuo nome]</button>
+
+  <!-- MINIMAPPA -->
+  <div id="minimappa">
+    <div class="mmTitolo">Mappa</div>
+    <div class="mmRiga">
+      <span class="mmStanza" id="mm-segrete">&#9760; Segrete</span>
+      <span class="mmFreccia" id="mf-1">&#8596;</span>
+      <span class="mmStanza" id="mm-salaTorture">Torture</span>
+      <span class="mmFreccia" id="mf-2">&#8596;</span>
+      <span class="mmStanza" id="mm-laboratorio">Lab</span>
+    </div>
+    <div class="mmRiga" style="margin-top:3px;padding-left:74px;">
+      <span class="mmFreccia" id="mf-3">&#8595;</span>
+      <span class="mmStanza" id="mm-fogne" style="margin-left:4px;">Fogne</span>
+    </div>
+  </div>
+
+</div><!-- #stage -->
+
+<div id="velo"><div id="popup"></div></div>
+
+<script>
+"use strict";
+
+const MAX_INVENTARIO = 3;
+const VERSO_I_TESTO  = "Chi sa ascoltare il filo del destino\ntrova nel buio il varco del cammino";
+const VERSO_II_TESTO = "Un pollo di gomma con carrucola in mano\nspalanca la porta al viandante lontano";
+
+const SCENE = {
+  segrete:     { titolo:"Le Segrete \u2014 Corridoio delle Celle" },
+  salaTorture: { titolo:"La Sala delle Torture" },
+  fogne:       { titolo:"Le Fogne del Castello" },
+  laboratorio: { titolo:"Il Laboratorio del Signore" },
+};
+
+const OGG = {
+  martello:   { id:"martello",    nome:"Martello Arrugginito", icona:"\uD83D\uDD28" },
+  chiodi:     { id:"chiodi",      nome:"Chiodi Arrugginiti",   icona:"\uD83D\uDCCE" },
+  legno:      { id:"legno",       nome:"Tavola di Legno",      icona:"\uD83E\uDEB5" },
+  osso:       { id:"ossoMal",     nome:"Osso Maledetto",       icona:"\uD83E\uDDB4" },
+  ponte:      { id:"ponte",       nome:"Ponte di Fortuna",     icona:"\uD83C\uDF09" },
+  chiaveCella:{ id:"chiaveCella", nome:"Chiave della Cella",   icona:"\uD83D\uDDDD\uFE0F" },
+};
+
+const HOTSPOTS = {
+  aldric:         { tipo:"npc1",          nome:"Cella" },
+  lucchettoCella: { tipo:"lucchettoCella",nome:"Lucchetto della cella" },
+  catene:         { tipo:"scenario",      nome:"Catene",
+    descrizione:"Pesanti catene di ferro pendono dagli anelli murati nel soffitto. La ruggine racconta decenni di umidit\u00e0." },
+  corridoioAvanti:{ tipo:"uscita", nome:"Corridoio", destinazione:"salaTorture",
+    domanda:"Avanzare nella sala delle torture?",
+    descrizione:"Il passaggio scende leggermente. L'odore di ferro e cera bruciata si fa pi\u00f9 intenso." },
+  uscitaStage1:   { tipo:"uscitaStage1",  nome:"Uscita verso la taverna" },
+  mucchioPietri:  { tipo:"scenario",      nome:"Mucchio di sassi",
+    descrizione:"Un cumulo di pietre franate da qualche spigolo del soffitto. Niente di utile \u2014 ma ti ricorda qualcosa di importante: <i>pesa sempre le tue mosse. Non toccare a casaccio. Ascolta le sensazioni prima di agire.</i> Qualcosa in questo posto punisce chi non riflette." },
+
+  versoDiLab:  { tipo:"uscita", nome:"Passaggio", destinazione:"laboratorio",
+    domanda:"Accedere al laboratorio?",
+    descrizione:"Un'apertura stretta nella parete conduce a un corridoio che sale verso quello che sembra un laboratorio. Luce fioca filtra dall'alto." },
+  barattoli:   { tipo:"scenario", nome:"Barattoli",
+    descrizione:"Barattoli di vetro tappati con cera, allineati con cura inquietante. Qualcosa di scuro galleggia in un liquido ambrato. Non vale la pena aprirli." },
+  arachne:     { tipo:"npc2",    nome:"Ragnatela" },
+  tavolo:      { tipo:"oggetto", id:"martello", nome:"Martello Arrugginito", icona:"\uD83D\uDD28",
+    domanda:"Esaminare il tavolo da lavoro?",
+    descrizione:"Tra gli attrezzi arrugginiti spicca un martello dal manico di legno. Pesante, con la testa ancora integra. Potrebbe tornare utile." },
+  ossoMaledetto:{ tipo:"ossoMaledetto", nome:"Osso dello scheletro" },
+  versoFogne:  { tipo:"uscita", nome:"Scale", destinazione:"fogne",
+    domanda:"Scendere verso le fogne?",
+    descrizione:"Gradini di pietra sconnessa scendono nell'oscurit\u00e0. Sale un odore pesante di acqua stagnante." },
+  ritornoSegrete:{ tipo:"uscita", nome:"Corridoio", destinazione:"segrete",
+    domanda:"Tornare nel corridoio delle celle?",
+    descrizione:"Il passaggio riporta alle segrete." },
+
+  barile:         { tipo:"barile",      nome:"Barile" },
+  canaleFogne:    { tipo:"canaleFogne", nome:"Fiume verde" },
+  tunnelRitorno:  { tipo:"uscita", nome:"Tunnel", destinazione:"salaTorture",
+    domanda:"Risalire verso la sala delle torture?",
+    descrizione:"Il tunnel risale verso la sala da cui sei sceso." },
+  zaino:          { tipo:"zaino",       nome:"Zaino abbandonato" },
+  scheletroChiodi:{ tipo:"oggetto", id:"chiodi", nome:"Chiodi Arrugginiti", icona:"\uD83D\uDCCE",
+    domanda:"Esaminare lo scheletro?",
+    descrizione:"I resti di un vecchio avventuriero. Incastrati tra le ossa, alcuni chiodi di ferro ancora dritti. Con qualcosa per estrarli si potrebbero usare." },
+
+  ritornoLabTorture:{ tipo:"uscita", nome:"Passaggio", destinazione:"salaTorture",
+    domanda:"Tornare alla sala delle torture?",
+    descrizione:"Il corridoio discendente riporta alla sala da cui sei venuto." },
+  serratura:    { tipo:"serratura",    nome:"Serratura elaborata" },
+  mortaio:      { tipo:"mortaio",      nome:"Mortaio di pietra" },
+  pergamenaLab: { tipo:"pergamenaLab", nome:"Pergamena sul leggio" },
+  easterEgg:    { tipo:"easterEgg",    nome:"Simbolo misterioso" },
+  sportelloLegno:{ tipo:"oggetto", id:"legno", nome:"Tavola di Legno", icona:"\uD83E\uDEB5",
+    domanda:"Esaminare lo sportello del mobile?",
+    descrizione:"Uno sportello di legno marcio su un mobile di quercia. Sembra sul punto di cedere. Con un po' di forza potrebbe staccarsi \u2014 e la tavola tornerebbe utile." },
+};
+
+const QUIZ_ARACHNE = [
+  { domanda:"Sei nella stanza sbagliata, hai perso tempo. Un vecchio vuole parlarti. Cosa fai?",
+    risposte:["Lo ascolto con attenzione, anche se sono di fretta","Lo interrompo: ho gi\u00e0 capito quello che mi serve","Annuisco senza seguire: ho altro per la testa"],
+    giusta:0, sbagliata:["","Chi non ascolta ripete gli stessi errori. La ragnatela ti trattiene \u2014 riprova.","Sentire non \u00e8 ascoltare. La ragnatela ti trattiene \u2014 riprova."] },
+  { domanda:"Una creatura strana ti blocca il cammino e chiede qualcosa in cambio di aiuto. Cosa fai?",
+    risposte:["Cerco cosa ho da offrire e tratto","Prendo quello che voglio con la forza","Ignoro la creatura e cerco un'altra strada da solo"],
+    giusta:0, sbagliata:["","La forza rompe, non costruisce. La ragnatela ti trattiene \u2014 riprova.","Ignorare non \u00e8 risolvere. La ragnatela ti trattiene \u2014 riprova."] },
+  { domanda:"Hai sbagliato strada. L'uscita sembra pi\u00f9 lontana di prima. Cosa fai?",
+    risposte:["Mi fermo, riconosco l'errore e cerco cosa fare di diverso","Ripeto gli stessi passi pi\u00f9 in fretta, sperando che funzioni","Abbandono: questa sfida non fa per me"],
+    giusta:0, sbagliata:["","Accelerare un errore non lo corregge. La ragnatela ti trattiene \u2014 riprova.","La frustrazione \u00e8 parte del percorso, non la fine. La ragnatela ti trattiene \u2014 riprova."] },
+];
+
+/* ══ STATO ══ */
+let scenaCorrente, raccolti, inventario, visitateScene;
+let consumate;
+let aldricFase, arachneFase, quizArachneIndice, arahneSoddisfatta;
+let serraturaEsaminata;
+let maledizioneTempo;
+let giaStatoMaledetto;
+let aldricLiberato, canaleSuperato, rattoVisto, rattoConsultato;
+let versoI, versoII, easterEggRisolto, libroLetto;
+
+function statoInizialeS2() {
+  scenaCorrente="segrete"; raccolti=new Set(); inventario=[]; visitateScene=new Set();
+  consumate=new Set();
+  aldricFase=0; arachneFase=0; quizArachneIndice=0; arahneSoddisfatta=false;
+  maledizioneTempo=-1;
+  aldricLiberato=false; canaleSuperato=false; rattoVisto=false; rattoConsultato=false;
+  versoI=false; versoII=false; easterEggRisolto=false; libroLetto=false;
+  serraturaEsaminata=false;
+}
+
+/* ══ SAVE / LOAD ══ */
+function leggiStato() {
+  try {
+    const raw=localStorage.getItem("aventuraStato");
+    if(raw){ const s=JSON.parse(raw); inventario=Array.isArray(s.inventario)?s.inventario:[]; raccolti=new Set(Array.isArray(s.raccolti)?s.raccolti:[]); }
+  } catch(e){ console.warn(e); }
+  aggiornaBottoneInv();
+  aggiornaSpriteOggetti();
+}
+function salvaStatoS2() {
+  try{ localStorage.setItem("aventuraStato",JSON.stringify({inventario,raccolti:[...raccolti],stage:2})); } catch(e){ console.warn(e); }
+}
+
+/* ══ DOM ══ */
+const elVelo   = document.getElementById("velo");
+const elPopup  = document.getElementById("popup");
+const elTitolo = document.getElementById("titoloScena");
+const elBtnInv = document.getElementById("btnInventario");
+const elAvviso = document.getElementById("avvisoMaledizione");
+const elTimer  = document.getElementById("timerMal");
+
+function ritrattoEmoji(e){ return `<div class="ritrattoBox">${e}</div>`; }
+
+/* ══ SCENE ══ */
+function vaiAScena(id) {
+  scenaCorrente=id;
+  elTitolo.textContent=SCENE[id].titolo;
+  const s=id==="segrete", t=id==="salaTorture", f=id==="fogne", l=id==="laboratorio";
+  ["bgSegrete","bgSalaTorture","bgFogne","bgLaboratorio"].forEach((bg,i)=>{
+    document.getElementById(bg).classList.toggle("attiva",[s,t,f,l][i]);
+  });
+  ["hsSegrete","hsSalaTorture","hsFogne","hsLaboratorio"].forEach((hs,i)=>{
+    document.getElementById(hs).classList.toggle("attivo",[s,t,f,l][i]);
+  });
+  ["spSegrete","spSalaTorture","spFogne","spLaboratorio"].forEach((sp,i)=>{
+    document.getElementById(sp).classList.toggle("attivo",[s,t,f,l][i]);
+  });
+  aggiornaMiniMappa(id);
+}
+
+function aggiornaMiniMappa(cur) {
+  visitateScene.add(cur);
+  ["segrete","salaTorture","fogne","laboratorio"].forEach(id=>{
+    const el=document.getElementById("mm-"+id); if(!el) return;
+    el.className="mmStanza";
+    if(id===cur) el.classList.add("corrente");
+    else if(visitateScene.has(id)) el.classList.add("visitata");
+  });
+  [{id:"mf-1",a:"segrete",b:"salaTorture"},{id:"mf-2",a:"salaTorture",b:"laboratorio"},{id:"mf-3",a:"salaTorture",b:"fogne"}].forEach(f=>{
+    const el=document.getElementById(f.id); if(!el) return;
+    el.className="mmFreccia"+(visitateScene.has(f.a)||visitateScene.has(f.b)?" visibile":"");
+  });
+}
+
+/* ══ POPUP ══ */
+let popupCorrente=null, selezionePending=null;
+function mostraPopup(html){ elPopup.innerHTML=html; elVelo.classList.add("attivo"); }
+function chiudiPopup(){ elVelo.classList.remove("attivo"); popupCorrente=null; selezionePending=null; }
+function popupEsito(titolo,testo){
+  mostraPopup(`${titolo?`<div class="nome">${titolo}</div>`:""}
+    <div class="testo corsivo">${testo}</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+function scegliOggetto(titolo,testo,etichNiente,cb){
+  selezionePending=cb;
+  const btns=inventario.map(o=>`<button class="si" onclick="selezionaOggetto('${o.id}')">${o.icona} ${o.nome}</button>`).join("");
+  mostraPopup(`<div class="nome">${titolo}</div><div class="testo corsivo">${testo}</div>
+    <div class="bottoni colonna">${btns}<button class="no" onclick="selezionaOggetto(null)">${etichNiente}</button></div>`);
+}
+function selezionaOggetto(id){ const cb=selezionePending; selezionePending=null; if(cb) cb(id); }
+
+/* ══ INVENTARIO ══ */
+function haOggetto(id){ return raccolti.has(id); }
+
+function daiOggetto(ogg){
+  if(raccolti.has(ogg.id)) return true;
+  if(inventario.length>=MAX_INVENTARIO){
+    popupEsito("Mani piene!",`Hai gi\u00e0 ${MAX_INVENTARIO} oggetti. Apri l'inventario, lascia qualcosa, poi torna.`);
+    return false;
+  }
+  raccolti.add(ogg.id); inventario.push({...ogg}); aggiornaBottoneInv();
+  aggiornaSpriteOggetti();
+  const maledetto=verificaMaledizione();
+  return !maledetto; // false se la maledizione è scattata (il suo popup non va sovrascritto)
+}
+
+function togliOggetto(id){
+  const i=inventario.findIndex(o=>o.id===id);
+  if(i>=0) inventario.splice(i,1);
+  raccolti.delete(id); aggiornaBottoneInv();
+  aggiornaSpriteOggetti();
+}
+
+function consuma(id){
+  const i=inventario.findIndex(o=>o.id===id);
+  if(i>=0) inventario.splice(i,1);
+  raccolti.delete(id);
+  consumate.add(id);
+  aggiornaBottoneInv();
+  aggiornaSpriteOggetti();
+}
+
+function aggiornaSpriteOggetti(){
+  const map={ martello:"spr-martello", chiodi:"spr-chiodi", legno:"spr-legno", ossoMal:"spr-osso" };
+  Object.entries(map).forEach(([id,sprId])=>{
+    const el=document.getElementById(sprId); if(!el) return;
+    el.style.display=(raccolti.has(id)||consumate.has(id))?"none":"";
+  });
+}
+
+function aggiornaBottoneInv(){ elBtnInv.textContent=`\uD83C\uDF92 Inventario (${inventario.length}/${MAX_INVENTARIO})`; }
+
+function apriInventario(){
+  const S1=["pergamena","mestolo","erbe","gemma","mappa"];
+  const righe=inventario.length===0
+    ? `<div id="invVuoto">Nessun oggetto raccolto.</div>`
+    : `<div id="grigliaInv">${inventario.map((o,i)=>`
+        <div class="oggettoInv">
+          <span class="ic">${o.icona}</span>
+          <span class="nm">${o.nome}${S1.includes(o.id)?'<span style="font-size:10px;color:#7A6A4A;"> (Stage 1)</span>':''}</span>
+          <div class="btnGruppo">
+            <button class="btnCombina" onclick="chiediCombina(${i})">Combina</button>
+            <button class="btnLascia"  onclick="chiediLascia(${i})">Lascia</button>
+          </div>
+        </div>`).join("")}</div>`;
+  mostraPopup(`<div id="pannelloInv">
+    <h3>\u2015 Inventario \u2015</h3>
+    <div id="contaSlot">${inventario.length} / ${MAX_INVENTARIO} spazi</div>
+    ${maledizioneTempo>=0?`<div style="background:#280808;border:1px solid #C44018;border-radius:3px;padding:5px 10px;font-size:13px;color:#F09060;margin-bottom:8px;">\u2620 Sei maledetto \u2014 ${maledizioneTempo} azioni rimaste</div>`:""}
+    ${righe}
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+  </div>`);
+}
+
+function chiediLascia(i){
+  const o=inventario[i]; if(!o) return;
+  mostraPopup(`<div class="nome">Lasciare ${o.nome}?</div>
+    <div class="testo corsivo">${o.icona} In questi corridoi non sar\u00e0 facile recuperarlo.</div>
+    <div class="bottoni"><button class="si" onclick="confermaLascia(${i})">S\u00ec</button><button class="no" onclick="apriInventario()">No</button></div>`);
+}
+function confermaLascia(i){
+  const o=inventario[i]; if(!o){ apriInventario(); return; }
+  togliOggetto(o.id); apriInventario();
+}
+
+/* ══ COMBINA ══ */
+function chiediCombina(i){
+  const orig=inventario[i]; if(!orig) return;
+  const altri=inventario.filter((_,j)=>j!==i);
+  if(altri.length===0){ popupEsito("Combina","Non hai altri oggetti con cui combinare questo."); return; }
+  const btns=altri.map(o=>`<button class="si" onclick="eseguiCombina('${o.id}','${orig.id}')">${o.icona} ${o.nome}</button>`).join("");
+  mostraPopup(`<div class="nome">Combina ${orig.icona} ${orig.nome}</div>
+    <div class="testo corsivo">Con cosa vuoi combinarlo?</div>
+    <div class="bottoni colonna">${btns}<button class="no" onclick="apriInventario()">Annulla</button></div>`);
+}
+
+function eseguiCombina(idB,idA){
+  const ponteSet=new Set(["martello","chiodi","legno"]);
+  if(ponteSet.has(idA)&&ponteSet.has(idB)){
+    const terzo=[...ponteSet].find(x=>x!==idA&&x!==idB);
+    if(haOggetto(terzo)){
+      consuma("martello"); consuma("chiodi"); consuma("legno");
+      chiudiPopup();
+      const maledetto=verificaMaledizione();
+      if(!maledetto){ daiOggetto(OGG.ponte); popupEsito("\uD83C\uDF09 Ponte costruito!","Martello, chiodi e legno prendono forma. Il ponte non \u00e8 elegante, ma regger\u00e0."); }
+      return;
+    }
+    const nomi={martello:"Martello",chiodi:"Chiodi",legno:"Tavola di Legno"};
+    chiudiPopup();
+    popupEsito("Manca qualcosa",`Ci sei quasi \u2014 ti manca ancora: <b>${nomi[terzo]}</b>.`);
+    return;
+  }
+  chiudiPopup();
+  popupEsito(null,"Questi oggetti non possono essere combinati. Forse manca ancora qualcosa.");
+}
+
+/* ══ MALEDIZIONE ══ */
+function aggiornaMaledizioneHUD(){
+  if(maledizioneTempo>=0){ elAvviso.style.display="block"; elTimer.textContent=maledizioneTempo; }
+  else{ elAvviso.style.display="none"; }
+}
+
+function verificaMaledizione(){
+  if(maledizioneTempo<0) return false;
+  maledizioneTempo--;
+  aggiornaMaledizioneHUD();
+  if(maledizioneTempo<0){ attivaEffettoMaledizione(); return true; }
+  return false;
+}
+
+function attivaEffettoMaledizione(){
+  giaStatoMaledetto=true;
+  const S1=["pergamena","mestolo","erbe","gemma","mappa"];
+  const invS1=inventario.filter(o=>S1.includes(o.id));
+  const racS1=new Set([...raccolti].filter(id=>S1.includes(id)));
+  statoInizialeS2();
+  inventario=invS1; raccolti=racS1; aggiornaBottoneInv();
+  aggiornaSpriteOggetti();
+  vaiAScena("segrete");
+  /* setTimeout(0): il popup di Aldric viene mostrato dopo che l'intera
+     catena di chiamate corrente si esaurisce, evitando sovrascritture */
+  setTimeout(()=>{ mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric, il Primo Avventuriero</div>
+    <div class="testo corsivo">La nebbia nera ti travolge. Quando la luce torna, sei di nuovo in fondo al corridoio \u2014 con le mani vuote e un sapore amaro in bocca.<br><br>
+    \u00abBentornato.\u00bb La voce di Aldric arriva dalla cella, secca come sempre. \u00abHo visto decine di avventurieri tornare cos\u00ec: in piedi, ma sconfitti. Tu almeno respiri ancora.<br><br>
+    Ascolta bene, perch\u00e9 non lo ripeter\u00f2: la maledizione ti ha gi\u00e0 perdonato una volta. Se la lasci prendere di nuovo, <b>non ci sar\u00e0 nessun risveglio</b>. Nessuno. La nebbia porta via per sempre chi si fida troppo della propria fortuna.<br><br>
+    <i>Usa il tempo che ti resta meglio di quanto hai fatto finora.\u00bb</i></div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito, Aldric.</button></div>`); }, 0);
+}
+
+/* ══ GAME OVER / RIAVVIO / INTRO ══ */
+function gameOverStage1(){
+  mostraPopup(`<div class="nome">\u2015 Il tesoro \u00e8 perduto \u2015</div>
+    <div class="testo corsivo">Risali i cunicoli verso la taverna. Nell'aria fredda della notte, echeggia lontano dalla collina un grido di gioia: qualcuno ce l'ha fatta prima di te.<br><br>Sei entrato da avventuriero. Esci da testimone.</div>
+    <div class="bottoni"><button class="si" onclick="window.location.href='gioco.html'">Ricomincia come nuovo avventuriero &rarr;</button></div>`);
+}
+
+function riavviaS2(){ statoInizialeS2(); leggiStato(); vaiAScena("segrete"); mostraIntroS2(); }
+
+function mostraIntroS2(){
+  const lista=inventario.length>0?inventario.map(o=>`${o.icona} <b>${o.nome}</b>`).join(", "):"niente";
+  const avviso=inventario.length===0?`<br><br><span style="color:var(--gold)">\u26a0 Nessun oggetto dallo Stage 1. Il percorso sar\u00e0 pi\u00f9 difficile.</span>`:"";
+  mostraPopup(`<div class="nome">\u2015 Le Segrete del Castello \u2015</div>
+    <div class="testo corsivo" style="text-align:left">Il cunicolo sbuca in un corridoio di pietra fredda. Dietro di te il passaggio \u00e8 franato: non si torna indietro.<br><br>
+    Con te: ${lista}.${avviso}<br><br>Sei nelle segrete di Roccabruna.</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Avanza</button></div>`);
+}
+
+function vittoria(){
+  chiudiPopup();
+  mostraPopup(`<div class="nome">\u2015 La porta si apre \u2015</div>
+    <div class="testo corsivo">I due versi risuonano nella stanza vuota. La serratura vibra, poi cede con un suono sordo.<br><br>La porta si apre verso l'interno.</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup(); document.getElementById('scVittoria').classList.add('attivo');">Entra &rarr;</button></div>`);
+}
+
+function concludiStage2(){
+  salvaStatoS2();
+  popupEsito("Progresso salvato","Il tuo percorso nelle segrete \u00e8 concluso. Quando lo Stage 3 sar\u00e0 disponibile, ripartirai da qui.");
+}
+
+function mostraCrediti(){
+  popupEsito("\u2015 Crediti \u2015",
+    "<b>L'Avventura della Taverna</b><br>Gioco educativo punta-e-clicca<br><br>" +
+    "Un progetto di <b>[IL TUO NOME]</b><br>" +
+    "Sviluppato con Claude \u2014 Anthropic<br><br>" +
+    "<span style='font-size:13px;color:#7A6A5A'>\u00a9 [ANNO] [IL TUO NOME]<br>Tutti i diritti riservati.</span>");
+}
+
+/* ══ CLICK HOTSPOT ══ */
+function clickHotspot(id){
+  const h=HOTSPOTS[id]; if(!h) return;
+
+  if(h.tipo==="scenario"){
+    popupCorrente={id,passo:"domanda"};
+    mostraPopup(`<div class="testo">Vuoi esaminare <span style="color:var(--gold)">${h.nome}</span> pi\u00f9 da vicino?</div>
+      <div class="bottoni">
+        <button class="si" onclick="rispostaSi()">S\u00ec</button>
+        <button class="no" onclick="chiudiPopup()">No</button>
+      </div>`);
+    return;
+  }
+
+  if(h.tipo==="npc1")          { dialogoAldric();         return; }
+  if(h.tipo==="npc2")          { dialogoArachne();        return; }
+  if(h.tipo==="barile")        { risolviBarile();         return; }
+  if(h.tipo==="uscitaStage1")  { risolviUscitaStage1();  return; }
+  if(h.tipo==="lucchettoCella"){ risolviLucchettoCella(); return; }
+  if(h.tipo==="ossoMaledetto") { risolviOssoMaledetto(); return; }
+  if(h.tipo==="canaleFogne")   { risolviCanaleFogne();   return; }
+  if(h.tipo==="zaino")         { risolviZaino();          return; }
+  if(h.tipo==="mortaio")       { risolviMortaio();        return; }
+  if(h.tipo==="pergamenaLab")  { risolviPergamenaLab();  return; }
+  if(h.tipo==="easterEgg"){
+    if(!serraturaEsaminata){
+      popupEsito("Simbolo misterioso","Un simbolo inciso nella pietra. Non ti dice niente, per ora.");
+      return;
+    }
+    risolviEasterEgg(); return;
+  }
+  if(h.tipo==="serratura")     { risolviSerratura();     return; }
+
+  if(h.tipo==="oggetto"&&raccolti.has(h.id)) return;
+
+  popupCorrente={id,passo:"domanda"};
+  mostraPopup(`<div class="testo">${h.domanda||"Procedere?"}</div>
+    <div class="bottoni"><button class="si" onclick="rispostaSi()">S\u00ec</button><button class="no" onclick="chiudiPopup()">No</button></div>`);
+}
+
+function rispostaSi(){
+  if(!popupCorrente) return;
+  const id=popupCorrente.id, h=HOTSPOTS[id];
+  if(popupCorrente.passo==="domanda"){
+    if(h.tipo==="scenario"){
+      chiudiPopup();
+      popupEsito(h.nome,h.descrizione);
+      return;
+    }
+    popupCorrente.passo="descrizione";
+    if(h.tipo==="oggetto"){
+      mostraPopup(`<div class="testo corsivo">${h.descrizione}</div>
+        <div class="testo">Raccogliere <span style="color:var(--gold)">${h.nome}</span>?</div>
+        <div class="bottoni"><button class="si" onclick="rispostaSi()">S\u00ec</button><button class="no" onclick="chiudiPopup()">No</button></div>`);
+      return;
+    }
+    if(h.tipo==="uscita"){
+      mostraPopup(`<div class="testo corsivo">${h.descrizione}</div>
+        <div class="testo">Procedere?</div>
+        <div class="bottoni"><button class="si" onclick="rispostaSi()">S\u00ec</button><button class="no" onclick="chiudiPopup()">No</button></div>`);
+      return;
+    }
+    return;
+  }
+  chiudiPopup();
+  if(h.tipo==="oggetto"){ daiOggetto(h); return; }
+  if(h.tipo==="uscita") { vaiAScena(h.destinazione); return; }
+}
+
+/* ══ USCITA STAGE 1 ══ */
+function risolviUscitaStage1(){
+  mostraPopup(`<div class="nome">Tornare alla taverna?</div>
+    <div class="testo corsivo">Il passaggio verso il basso porta ai cunicoli da cui sei venuto. Tornare significherebbe abbandonare il castello \u2014 e il tesoro con esso. Sei sicuro?</div>
+    <div class="bottoni"><button class="si" onclick="gameOverStage1()">S\u00ec, torno indietro</button><button class="no" onclick="chiudiPopup()">No, resto</button></div>`);
+}
+
+/* ══ LUCCHETTO CELLA ══ */
+function risolviLucchettoCella(){
+  if(aldricLiberato){ popupEsito("Cella aperta","La cella \u00e8 gi\u00e0 aperta. Aldric \u00e8 libero."); return; }
+  if(!haOggetto("chiaveCella")){
+    popupEsito("Lucchetto","Un lucchetto di ferro massiccio. Ci vuole la chiave giusta \u2014 da qualche parte nelle fogne, forse, qualcuno l'ha lasciata.");
+    return;
+  }
+  scegliOggetto("Aprire il lucchetto","Hai una chiave con lo stesso stemma del lucchetto. Vuoi usarla?","Non ancora",
+    idScelto=>{
+      if(idScelto!=="chiaveCella"){ popupEsito(null,"Non \u00e8 la chiave giusta."); return; }
+      togliOggetto("chiaveCella"); aldricLiberato=true;
+      dialogoAldricLiberato();
+    });
+}
+
+/* ══ OSSO MALEDETTO ══ */
+function risolviOssoMaledetto(){
+  if(haOggetto("ossoMal")){ popupEsito("Osso Maledetto","Lo porti gi\u00e0 con te. Senti ancora il bagliore violaceo pulsare."); return; }
+  if(consumate.has("ossoMal")){
+    popupEsito("Osso Maledetto","L'osso \u00e8 andato. Lo hai consumato nella pozione. Sul pavimento rimane solo una macchia scura.");
+    return;
+  }
+  mostraPopup(`<div class="nome">Osso dello scheletro</div>
+    <div class="testo corsivo">Tra i detriti, un osso dal <b>bagliore fioco e violaceo</b>. Non \u00e8 naturale. Una sensazione di disagio sale dalla punta delle dita.<br><br>
+    Eppure... qualcosa ti dice che potrebbe avere un potere. Raccoglierlo ti render\u00e0 <b>maledetto</b>: avrai solo <b>3 azioni</b> prima di cedere. La pozione nel laboratorio potrebbe salvarti.<br><br>
+    Vale il rischio?</div>
+    <div class="bottoni">
+      <button class="si" onclick="confermaOsso()">S\u00ec, lo prendo</button>
+      <button class="no" onclick="chiudiPopup()">No, troppo rischioso</button>
+    </div>`);
+}
+
+function confermaOsso(){
+  if(giaStatoMaledetto){
+    mostraPopup(`<div class="nome">\u2015 Game Over \u2015</div>
+      <div class="testo corsivo">Aldric te l'aveva detto: la seconda maledizione non lascia scampo. La nebbia nera \u00e8 definitiva.<br><br><i>"Anche a me, la prima volta, era andata bene..."</i></div>
+      <div class="bottoni"><button class="si" onclick="window.location.href='gioco.html'">Ricomincia dall'inizio</button></div>`);
+    return;
+  }
+  chiudiPopup();
+  if(daiOggetto(OGG.osso)){
+    maledizioneTempo=3; aggiornaMaledizioneHUD();
+    popupEsito("\u2620 Sei maledetto!","L'osso brucia tra le dita. Senti qualcosa entrare in te. Hai <b>3 azioni di raccolta o combinazione</b> per preparare la pozione nel laboratorio. Muoviti.");
+  }
+}
+
+/* ══ CANALE FOGNE ══ */
+function risolviCanaleFogne(){
+  if(canaleSuperato){
+    mostraPopup(`<div class="nome">Fiume verde</div>
+      <div class="testo corsivo">Il passaggio \u00e8 aperto. Dall'altra parte hai gi\u00e0 preso quello che cercavi.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+    return;
+  }
+  if(haOggetto("ponte")){
+    mostraPopup(`<div class="nome">Fiume verde</div>
+      <div class="testo corsivo">Hai il ponte. Vuoi posarlo sul canale e attraversare?</div>
+      <div class="bottoni">
+        <button class="si" onclick="usaPonteSulCanale()">S\u00ec, attraversa</button>
+        <button class="no" onclick="chiudiPopup()">Non ancora</button>
+      </div>`);
+    return;
+  }
+  if(haOggetto("ossoMal")){
+    mostraPopup(`<div class="nome">Fiume verde</div>
+      <div class="testo corsivo">L'osso maledetto vibra. Senti che potresti levitare sopra il canale \u2014 ma la maledizione consumer\u00e0 un'azione. Attraversare?</div>
+      <div class="bottoni">
+        <button class="si" onclick="levitaConOsso()">S\u00ec, levita</button>
+        <button class="no" onclick="chiudiPopup()">No</button>
+      </div>`);
+    return;
+  }
+  const hM=haOggetto("martello"), hC=haOggetto("chiodi"), hL=haOggetto("legno");
+  const n=[hM,hC,hL].filter(Boolean).length;
+  if(n===3) popupEsito("Fiume verde","Hai tutto il necessario per costruire un ponte. Vai nell'inventario e <b>Combina</b> i tre oggetti.");
+  else if(n>0) popupEsito("Fiume verde","Il liquido verde \u00e8 impenetrabile. Hai notato del materiale utile nelle stanze... ma non \u00e8 ancora abbastanza. Continua a cercare.");
+  else popupEsito("Fiume verde","Impenetrabile. Ti serve un modo per attraversarlo senza toccarlo. Esplora bene le stanze.");
+}
+
+function usaPonteSulCanale(){
+  togliOggetto("ponte"); canaleSuperato=true; chiudiPopup();
+  popupEsito("\uD83C\uDF09 Ponte posato!","Il ponte regge. Attraversi il canale senza toccare il liquido verde. Dall'altra parte, nell'ombra, intravedi qualcosa.");
+}
+
+function levitaConOsso(){
+  chiudiPopup(); canaleSuperato=true;
+  const maledetto=verificaMaledizione();
+  if(!maledetto) popupEsito("Levitazione!","L'osso ti solleva di pochi centimetri. Attraversi il canale sospeso nell'aria, il cuore in gola.");
+}
+
+/* ══ ZAINO ══ */
+function risolviZaino(){
+  if(!canaleSuperato){ popupEsito("Zaino","\u00c8 dall'altra parte del fiume. Devi trovare un modo per attraversare."); return; }
+  if(haOggetto("chiaveCella")){ popupEsito("Zaino","Il zaino \u00e8 vuoto. Hai gi\u00e0 preso quello che conteneva."); return; }
+  chiudiPopup();
+  if(daiOggetto(OGG.chiaveCella)) popupEsito("Zaino!","Dentro, avvolto in un panno rosso, una chiave di ferro. L'incisione corrisponde esattamente al lucchetto sulla cella di Aldric.");
+}
+
+/* ══ MORTAIO ══ */
+function risolviMortaio(){
+  if(maledizioneTempo>=0){
+    if(haOggetto("erbe")){
+      mostraPopup(`<div class="nome">Mortaio di pietra</div>
+        <div class="testo corsivo" style="color:#F09060">\u2620 Sei maledetto \u2014 ti rimangono <b>${maledizioneTempo}</b> azioni!<br><br>Hai le erbe. Il mortaio pu\u00f2 trasformarle in una pozione. Agisci ora?</div>
+        <div class="bottoni">
+          <button class="si" onclick="preparaPozione()">S\u00ec, prepara la pozione</button>
+          <button class="no" onclick="chiudiPopup()">Non ancora</button>
+        </div>`);
+      return;
+    }
+    popupEsito("Mortaio di pietra",`<span style="color:#F09060">\u2620 Sei maledetto \u2014 ${maledizioneTempo} azioni rimaste!</span><br><br>Il mortaio potrebbe aiutarti \u2014 ma ti manca l'ingrediente. Le erbe sarebbero perfette.`);
+    return;
+  }
+  popupEsito("Mortaio di pietra","Un mortaio di pietra scura con tracce di polvere viola sul fondo. Con il giusto ingrediente potrebbe essere utile.");
+}
+
+function preparaPozione(){
+  togliOggetto("erbe");
+  consuma("ossoMal");
+  maledizioneTempo=-1; aggiornaMaledizioneHUD(); chiudiPopup();
+  popupEsito("Maledizione spezzata!","Il composto verde fuma nel mortaio. Lo annusi e la sensazione bruciante svane lentamente. Sei libero.");
+}
+
+/* ══ PERGAMENA LAB ══ */
+function risolviPergamenaLab(){
+  libroLetto=true;
+  let testo=`Una pergamena dall'inchiostro ancora leggibile. Parla di questo laboratorio e di una porta che "risponde solo alle parole giuste \u2014 non alla forza, mai alla forza".<br><br>Pi\u00f9 avanti: <i>"La prima parola viene da chi tesse. La seconda da chi ha aiutato un pirata, in un'altra dimensione di questo costrutto."</i>`;
+  if(aldricLiberato) testo+=`<br><br>Le parole di Aldric risuonano: <i>"un giovane pirata di nome Guybrush... anno 1990..."</i>`;
+  popupEsito("Pergamena sul leggio",testo);
+}
+
+/* ══ EASTER EGG ══ */
+function risolviEasterEgg(){
+  if(versoII){ popupEsito("Simbolo misterioso",`Hai gi\u00e0 risolto l'enigma. Il secondo verso \u00e8 inciso nella tua memoria:<br><br><i>"${VERSO_II_TESTO.replace('\n','<br>')}"</i>`); return; }
+  mostraPopup(`<div class="nome">\u2014 L'enigma del simbolo \u2014</div>
+    <div class="testo corsivo">Sul pavimento, inciso nella pietra, un simbolo che non riconosci del tutto. Accanto, una domanda:<br><br>
+    <b>"Di cosa aveva bisogno un celebre pirata per attraversare un abisso invalicabile?"</b><br><br>
+    ${!aldricLiberato?'<span style="color:#7A6A4A;font-size:14px;">Forse qualcuno in questo castello sa da dove viene questa domanda...</span>':'<span style="color:var(--gold);font-size:14px;">Aldric ha detto: <i>un giovane pirata... 1990...</i></span>'}</div>
+    <input type="text" id="rispostaEE" class="inputTesto" placeholder="Scrivi la risposta...">
+    <div class="bottoni">
+      <button class="si" onclick="verificaEasterEgg()">Rispondo</button>
+      <button class="no" onclick="chiudiPopup()">Non lo so ancora</button>
+    </div>`);
+}
+
+function verificaEasterEgg(){
+  const r=(document.getElementById("rispostaEE")||{value:""}).value.toLowerCase();
+  if(r.includes("pollo")&&r.includes("gomma")&&r.includes("carrucola")){
+    versoII=true; easterEggRisolto=true;
+    mostraPopup(`<div class="nome">Corretto!</div>
+      <div class="testo corsivo">Il simbolo si illumina di luce dorata. Una scritta appare sul pavimento \u2014 il secondo verso della filastrocca magica:<br><br>
+      <i>"${VERSO_II_TESTO.replace('\n','<br>')}"</i><br><br>
+      ${versoI?'Hai entrambi i versi. La serratura ti aspetta.':'Ti manca ancora il primo verso \u2014 Arachne, nella sala di sopra, ne custodisce uno.'}</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+  } else {
+    mostraPopup(`<div class="nome">Non corretto</div>
+      <div class="testo corsivo">Il simbolo rimane spento. Pensa a cosa aveva bisogno quel pirata \u2014 tre parole chiave.</div>
+      <div class="bottoni"><button class="si" onclick="risolviEasterEgg()">Riprova</button><button class="no" onclick="chiudiPopup()">Ci penso</button></div>`);
+  }
+}
+
+/* ══ SERRATURA FINALE ══ */
+function _formSerratura(){
+  return `<div style="text-align:left;font-size:14px;color:var(--gold);margin-bottom:4px">Primo verso:</div>
+    <textarea id="inputVersoI" class="inputTesto" rows="2" placeholder="Primo verso..." style="resize:none;display:block;"></textarea>
+    <div style="text-align:left;font-size:14px;color:var(--gold);margin:8px 0 4px">Secondo verso:</div>
+    <textarea id="inputVersoII" class="inputTesto" rows="2" placeholder="Secondo verso..." style="resize:none;display:block;"></textarea>
+    <div id="erroreSerratura" style="color:#F09060;font-size:13px;min-height:16px;margin:6px 0;"></div>
+    <div class="bottoni">
+      <button class="si" onclick="verificaFilastrocca()">Pronuncia</button>
+      <button class="no" onclick="chiudiPopup()">Aspetta</button>
+    </div>`;
+}
+
+function risolviSerratura(){
+  if(!serraturaEsaminata){
+    serraturaEsaminata=true;
+    mostraPopup(`<div class="nome">Serratura elaborata</div>
+      <div class="testo corsivo">Non c'\u00e8 buco per una chiave. Tutt'intorno, simboli incisi nella pietra. Al centro, un'istruzione appena distinguibile:<br><br>
+      <i>\u00abPronuncia la filastrocca giusta. Due versi. Niente di pi\u00f9, niente di meno.\u00bb</i><br><br>
+      Una filastrocca. Dove mai trovarla? Se credi di averla gi\u00e0, puoi provarci subito.</div>
+      ${_formSerratura()}`);
+    return;
+  }
+  mostraPopup(`<div class="nome">Serratura elaborata</div>
+    <div class="testo corsivo">La serratura aspetta la filastrocca. Due versi, nell'ordine giusto.</div>
+    ${_formSerratura()}`);
+}
+
+function verificaFilastrocca(){
+  const v1=(document.getElementById("inputVersoI")||{value:""}).value.toLowerCase().trim();
+  const v2=(document.getElementById("inputVersoII")||{value:""}).value.toLowerCase().trim();
+  /* Controllo per parole chiave: richiede i concetti essenziali, non la forma esatta */
+  const ok1=v1.includes("ascoltare")&&(v1.includes("destino")||v1.includes("filo"))&&(v1.includes("cammino")||v1.includes("varco")||v1.includes("buio"));
+  const ok2=v2.includes("pollo")&&v2.includes("gomma")&&v2.includes("carrucola");
+  if(ok1&&ok2){ chiudiPopup(); vittoria(); return; }
+  const el=document.getElementById("erroreSerratura");
+  if(el){
+    const msg=[];
+    if(!ok1) msg.push("Il primo verso non torna.");
+    if(!ok2) msg.push("Il secondo verso non torna.");
+    el.textContent=msg.join(" ");
+  }
+}
+
+/* ══ NPC: ALDRIC ══ */
+function dialogoAldric(){
+  if(aldricFase===0){
+    aldricFase=1;
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric, il Primo Avventuriero</div>
+      <div class="testo corsivo">Nell'angolo pi\u00f9 buio della cella, seduto con una compostezza quasi teatrale, c'\u00e8 uno scheletro. La testa di osso si gira verso di te.<br><br>
+      \u00abAh. Finalmente qualcuno che non urla.\u00bb La voce \u00e8 secca come pergamena.
+      ${giaStatoMaledetto?'<br><br><span style="color:#F09060">\u00abVedo che hai gi\u00e0 ceduto alla maledizione. Ti avverto: se la prendi di nuovo, non c\'\\u00e8 ritorno. Mai.\u00bb</span>':''}</div>
+      <div class="bottoni colonna">
+        <button class="si" onclick="aldricRisposta('storia')">\u00abChi sei?\u00bb</button>
+        <button class="si" onclick="aldricRisposta('consigli')">\u00abCosa devo sapere?\u00bb</button>
+        <button class="no" onclick="chiudiPopup()">Allontanarsi</button>
+      </div>`);
+    return;
+  }
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric, il Primo Avventuriero</div>
+    <div class="testo corsivo">\u00abAncora tu.\u00bb La testa si inclina. \u00abRicorda: non toccare quello che brilla di viola, a meno che tu non abbia fretta e un antidoto a portata di mano. Il topo nelle fogne sa cose. E la serratura del laboratorio vuole <i>parole</i>, non chiavi.\u00bb
+    ${giaStatoMaledetto?'<br><br><span style="color:#F09060">\u00abE soprattutto: non rischiare di nuovo con quell\'osso.\u00bb</span>':''}</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Grazie</button></div>`);
+}
+
+function aldricRisposta(tipo){
+  if(tipo==="storia"){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric</div>
+      <div class="testo corsivo">\u00abAldric. Avventuriero, sessant'anni fa. Sono arrivato come te. La maledizione \u00e8 precisa: resto qui finch\u00e9 qualcuno porta fuori quello che il Signore ha nascosto.\u00bb</div>
+      <div class="bottoni"><button class="si" onclick="aldricRisposta('consigli')">\u00abCosa devo sapere?\u00bb</button><button class="no" onclick="chiudiPopup()">Congedarsi</button></div>`);
+    return;
+  }
+  aldricFase=2;
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric</div>
+    <div class="testo corsivo">\u00abTre cose hanno fatto fallire tutti quelli prima di te.<br><br>
+    <b>Prima:</b> non ascoltavano. Ogni creatura qui sa qualcosa.<br><b>Seconda:</b> non collaboravano. Due oggetti insieme valgono pi\u00f9 di uno solo.<br><b>Terza:</b> fuggivano dall'errore invece di imparare da esso.\u00bb</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+function dialogoAldricLiberato(){
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC80")}<div class="nome">Aldric \u2014 Libero</div>
+    <div class="testo corsivo">Lo scheletro si alza dal banco con lentezza cerimoniale. \u00abAh.\u00bb Una pausa lunghissima. \u00abFinalmente.\u00bb<br><br>
+    \u00abQuel libro nel laboratorio \u2014 quella pergamena \u2014 non \u00e8 normale. L'ho visto cambiare forma. Una volta era il diario di bordo di un giovane pirata di nome <b>Guybrush</b>. Anno 1990, fuori da questo... costrutto.<br><br>
+    Se sai dove cercare oggi \u2014 e oggi si cerca ovunque, anche al di fuori di queste mura di pixel \u2014 troverai la risposta all'enigma che quella stanza ti pone.\u00bb<br><br>
+    Ti guarda con orbite vuote che sembrano, stranamente, divertite.</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Grazie, Aldric.</button></div>`);
+}
+
+/* ══ NPC: ARACHNE ══ */
+function dialogoArachne(){
+  if(arahneSoddisfatta){
+    popupEsito("Arachne, la Veggente",versoI
+      ?"La ragnatela si muove appena. Arachne ti ha gi\u00e0 dato quello che aveva da dare."
+      :"La ragnatela si muove. \u00abHai superato le mie domande \u2014 il verso \u00e8 tuo. Cercalo nella tua memoria.\u00bb");
+    return;
+  }
+  /* Prima di esaminare la serratura: Arachne non offre ancora il quiz */
+  if(!serraturaEsaminata){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Ragnatela nell'angolo</div>
+      <div class="testo corsivo">Otto occhi ti fissano in silenzio dal centro della ragnatela.<br><br>
+      \u00abGuarda altrove. Non ho niente da dirti, per ora. Torna quando sai cosa cerchi.\u00bb</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Allontanarsi</button></div>`);
+    return;
+  }
+  if(arachneFase===0){
+    arachneFase=1;
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Ragnatela nell'angolo</div>
+      <div class="testo corsivo">Al centro della ragnatela \u2014 immobile \u2014 c'\u00e8 un ragno grande come un gatto. Otto occhi ti fissano.<br><br>
+      \u00abSei arrivato.\u00bb La voce \u00e8 come seta che si strappa. \u00abFinalmente uno che non urla.\u00bb</div>
+      <div class="bottoni colonna">
+        <button class="si" onclick="arachneDialogo2()">\u00abChi sei?\u00bb</button>
+        <button class="si" onclick="arachneDialogo2()">\u00abCosa vuoi?\u00bb</button>
+      </div>`);
+    return;
+  }
+  arachneDialogo2();
+}
+
+function arachneDialogo2(){
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne, la Veggente</div>
+    <div class="testo corsivo">\u00abVuoi passare? Puoi. Ma prima mi devi tre risposte vere. In cambio, ti do il <b>primo verso</b> della filastrocca che apre la porta del laboratorio.\u00bb</div>
+    <div class="bottoni colonna">
+      <button class="si" onclick="arachneVerificaGemma()">\u00abHo qualcosa per te.\u00bb</button>
+      <button class="si" onclick="avviaQuizArachne()">\u00abChiedi pure.\u00bb</button>
+      <button class="no" onclick="chiudiPopup()">\u00abCi penso.\u00bb</button>
+    </div>`);
+}
+
+function arachneVerificaGemma(){
+  if(!haOggetto("gemma")){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+      <div class="testo corsivo">\u00abNon vedo niente che mi interessi. Rispondi alle domande.\u00bb</div>
+      <div class="bottoni"><button class="si" onclick="avviaQuizArachne()">\u00abVa bene.\u00bb</button></div>`);
+    return;
+  }
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+    <div class="testo corsivo">Gli otto occhi si posano sulla gemma. \u00abQuella. Dammi la gemma e ti do il verso senza domande.\u00bb</div>
+    <div class="bottoni">
+      <button class="si" onclick="arachneAccettaGemma()">Dare la gemma</button>
+      <button class="no" onclick="avviaQuizArachne()">Preferisco rispondere</button>
+    </div>`);
+}
+
+function arachneAccettaGemma(){
+  togliOggetto("gemma"); arahneSoddisfatta=true; versoI=true;
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+    <div class="testo corsivo">Una zampa raccoglie la gemma con delicatezza inaspettata.<br><br>
+    \u00abIl primo verso della filastrocca magica \u00e8:<br><br><i>"${VERSO_I_TESTO.replace('\n','<br>')}"</i><br><br>
+    Ricordalo. E ricorda: la porta non risponde alla forza. <i>Mai</i> alla forza.\u00bb</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+function avviaQuizArachne(){
+  quizArachneIndice=0;
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+    <div class="testo corsivo">\u00abTre domande. Se sbagli, la ragnatela ti trattiene un momento \u2014 poi riprovi. In cambio, il primo verso della filastrocca.\u00bb</div>
+    <div class="bottoni"><button class="si" onclick="mostraDomandaArachne()">Sono pronto.</button></div>`);
+}
+
+function mostraDomandaArachne(){
+  const q=QUIZ_ARACHNE[quizArachneIndice];
+  const btns=q.risposte.map((r,i)=>`<button class="si" onclick="arachneRispondi(${i})">${r}</button>`).join("");
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne \u2014 domanda ${quizArachneIndice+1} di ${QUIZ_ARACHNE.length}</div>
+    <div class="testo corsivo">${q.domanda}</div>
+    <div class="bottoni colonna">${btns}</div>`);
+}
+
+function arachneRispondi(i){
+  const q=QUIZ_ARACHNE[quizArachneIndice];
+  if(i!==q.giusta){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+      <div class="testo corsivo">${q.sbagliata[i]}</div>
+      <div class="bottoni"><button class="si" onclick="mostraDomandaArachne()">Riprova</button></div>`);
+    return;
+  }
+  quizArachneIndice++;
+  if(quizArachneIndice<QUIZ_ARACHNE.length){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne</div>
+      <div class="testo corsivo">\u00abBene.\u00bb Un lungo silenzio. \u00abProssima.\u00bb</div>
+      <div class="bottoni"><button class="si" onclick="mostraDomandaArachne()">Avanti</button></div>`);
+    return;
+  }
+  arahneSoddisfatta=true; versoI=true;
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDD77\uFE0F")}<div class="nome">Arachne, la Veggente</div>
+    <div class="testo corsivo">\u00abTre risposte vere.\u00bb La ragnatela si apre leggermente.<br><br>
+    \u00abIl primo verso della filastrocca magica \u00e8:<br><br><i>"${VERSO_I_TESTO.replace('\n','<br>')}"</i><br><br>
+    Ricordalo bene.\u00bb</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+/* ══ NPC: TOPINUS ══ */
+function risolviBarile(){
+  if(rattoConsultato){ popupEsito("Barile","Il barile \u00e8 vuoto. Il suo inquilino ha detto quello che aveva da dire."); return; }
+  if(!rattoVisto){
+    rattoVisto=true;
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDC00")}<div class="nome">Maester Topinus, Studioso delle Profondit\u00e0</div>
+      <div class="testo corsivo">Dal barile emerge una testa grigia con occhietti brillanti. \u00abAh. Un vivo. Quanto tempo.\u00bb La voce \u00e8 sorprendentemente colta.<br><br>\u00abEx-studioso di Roccabruna. Maledizione del vecchio Signore \u2014 storia lunga.\u00bb</div>
+      <div class="bottoni colonna">
+        <button class="si" onclick="rattoDialogo1()">\u00abCosa sai di questo posto?\u00bb</button>
+        <button class="no" onclick="chiudiPopup()">\u00abNon ora.\u00bb</button>
+      </div>`);
+    return;
+  }
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC00")}<div class="nome">Maester Topinus</div>
+    <div class="testo corsivo">\u00abAncora tu. Hai trovato la via per il laboratorio?\u00bb</div>
+    <div class="bottoni colonna">
+      <button class="si" onclick="rattoDialogo1()">\u00abS\u00ec. Hai altri consigli?\u00bb</button>
+      <button class="no" onclick="chiudiPopup()">\u00abDopo.\u00bb</button>
+    </div>`);
+}
+
+function rattoDialogo1(){
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC00")}<div class="nome">Maester Topinus</div>
+    <div class="testo corsivo">\u00abIl fiume verde.\u00bb Agita una zampa. \u00abTre modi per superarlo: la forza bruta con materiali giusti, il coraggio folle con qualcosa di maledetto, o la pazienza. Ho spiato chi ci viveva \u2014 martello, chiodi e legno fanno un ponte. O c'\u00e8 quell'osso viola nel salone di sopra... ma quello ha un costo.\u00bb</div>
+    <div class="bottoni colonna">
+      <button class="si" onclick="rattoBaratto()">\u00abPosso offrirti qualcosa?\u00bb</button>
+      <button class="no" onclick="chiudiPopup(); rattoConsultato=true;">\u00abGrazie. Procedo.\u00bb</button>
+    </div>`);
+}
+
+function rattoBaratto(){
+  rattoConsultato=true;
+  if(haOggetto("erbe")){
+    mostraPopup(`${ritrattoEmoji("\uD83D\uDC00")}<div class="nome">Maester Topinus</div>
+      <div class="testo corsivo">\u00abErbe fresche.\u00bb Gli occhi si illuminano. \u00abPer le erbe ti dico un'altra cosa: nel laboratorio, se sei maledetto, le erbe nel mortaio ti salvano. Ma agisci in fretta.\u00bb</div>
+      <div class="bottoni">
+        <button class="si" onclick="togliOggetto('erbe'); chiudiPopup(); popupEsito('Scambio fatto','Topinus annusa le erbe con trasporto quasi commovente.');">Dare le erbe</button>
+        <button class="no" onclick="chiudiPopup()">Tenerle</button>
+      </div>`);
+    return;
+  }
+  mostraPopup(`${ritrattoEmoji("\uD83D\uDC00")}<div class="nome">Maester Topinus</div>
+    <div class="testo corsivo">\u00abNiente di organico, vedo. Le informazioni erano un dono. Stai bene.\u00bb Rientra nel barile.</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+/* ══ AVVIO ══ */
+document.querySelectorAll(".hot").forEach(g=>{ g.addEventListener("click",()=>clickHotspot(g.dataset.id)); });
+elVelo.addEventListener("click",e=>{ if(e.target===elVelo) chiudiPopup(); });
+
+giaStatoMaledetto=false;
+statoInizialeS2();
+leggiStato();
+vaiAScena("segrete");
+mostraIntroS2();
+</script>
+</body>
+</html>
