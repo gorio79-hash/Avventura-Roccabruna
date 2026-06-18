@@ -127,6 +127,15 @@
     box-shadow: 0 0 18px rgba(0,0,0,0.9);
   }
 
+  /* ── CREDITI ── */
+  #btnCrediti {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    background: transparent; border: none;
+    color: #4A3A22; font-family: Palatino, Georgia, serif;
+    font-size: 11px; cursor: pointer; letter-spacing: .06em; padding: 4px 8px; z-index: 10;
+  }
+  #btnCrediti:hover { color: var(--gold); }
+
   /* ── SCENE SPECIALI ── */
   #scBuio {
     position: absolute; inset: 0;
@@ -242,7 +251,7 @@
   <div id="scSegrete">
     <h2>― Le Segrete del Castello ―</h2>
     <p>Il cunicolo sbuca in una sala di pietra fredda, sotto le fondamenta del castello. Dietro di te, il passaggio è franato: non si torna indietro.</p>
-    <button onclick="window.location.href='segrete.html'">Avanza nelle segrete →</button>
+    <button onclick="salvaEVai()">Avanza nelle segrete →</button>
   </div>
 
   <!-- ═══════════ HOTSPOT TAVERNA ═══════════ -->
@@ -383,6 +392,7 @@
   <!-- HUD -->
   <div id="titoloScena">La Taverna dell'Alba d'Oro</div>
   <button id="btnInventario" onclick="apriInventario()">🎒 Inventario (0/3)</button>
+  <button id="btnCrediti" onclick="mostraCrediti()">© Dott. Magri Gregorio</button>
 </div>
 
 <!-- POPUP -->
@@ -552,25 +562,32 @@ let scenaCorrente, raccolti, inventario, chiaveCucinaTrovata, quizIndice,
     portaProvata, disceseBuio, tentativiNicchia, topoVisto;
 let ultimoFallimento = null; // ricordato tra una partita e l'altra
 
+/* ── TRACKING TEMPO E CLICK ── */
+let avventuraInizio = Date.now();
+let clickTotaliS1   = 0;
+
 /* ═══════════════════════ SALVATAGGIO STATO (localStorage) ═══════════════════════ */
 
 /* Salva inventario e oggetti raccolti prima di passare a segrete.html.
    La chiave "aventuraStato" verrà letta all'avvio di segrete.html. */
 function salvaStato() {
   const stato = {
-    inventario: inventario,          // array di {id, nome, icona}
-    raccolti:   [...raccolti],       // array di id già raccolti
+    inventario:      inventario,
+    raccolti:        [...raccolti],
+    avventuraInizio: avventuraInizio,
+    clickStage1:     clickTotaliS1,
+    tempoStage1:     Math.round((Date.now() - avventuraInizio) / 1000),
   };
   try {
     localStorage.setItem("aventuraStato", JSON.stringify(stato));
   } catch(e) {
-    // localStorage non disponibile (es. file:// su alcuni browser):
-    // il passaggio avviene comunque, segrete.html partirà con inventario vuoto
     console.warn("localStorage non disponibile:", e);
   }
 }
 
 function statoIniziale() {
+  /* Pulizia stato precedente — garantisce partenza sempre fresca */
+  try { localStorage.removeItem("aventuraStato"); } catch(e) {}
   scenaCorrente = "taverna";
   raccolti = new Set();
   inventario = [];
@@ -585,6 +602,8 @@ function statoIniziale() {
   disceseBuio = 0;          // discese al buio: alla seconda, gamba rotta
   tentativiNicchia = 0;     // ingressi senza mappa: al secondo, follia
   topoVisto = false;
+  avventuraInizio  = Date.now();
+  clickTotaliS1    = 0;
 }
 
 function haOggetto(id) { return raccolti.has(id); }
@@ -673,6 +692,18 @@ function popupEsito(titolo, testo) {
   `);
 }
 
+function mostraCrediti() {
+  popupEsito("― Crediti ―",
+    "<b>L'Avventura della Taverna</b><br><br>Un progetto di<br><b>Dott. Magri Gregorio</b><br>" +
+    "Psicologo / Psicoterapeuta<br><br>Cooperativa / Istituto Minotauro — Milano<br><br>" +
+    "<span style='font-size:13px;color:#7A6A5A'>© 2026 Dott. Magri Gregorio<br>Tutti i diritti riservati.</span>");
+}
+
+function salvaEVai() {
+  salvaStato();
+  window.location.href = 'segrete.html';
+}
+
 /* Scelta esplicita di un oggetto dall'inventario:
    nessun uso automatico, il giocatore decide cosa adoperare */
 function scegliOggetto(titolo, testo, etichettaNiente, callback) {
@@ -744,6 +775,7 @@ function consumaCandela(idHotspot) {
 /* ═══════════════════════ CLICK SUGLI HOTSPOT ═══════════════════════ */
 
 function clickHotspot(id) {
+  clickTotaliS1++;
   const h = HOTSPOTS[id];
   if (!h) return;
 
