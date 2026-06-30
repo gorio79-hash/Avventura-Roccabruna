@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--
+  L'Avventura della Taverna — Stage 3: La Stanza del Tesoro
+  Un progetto di Dott. Magri Gregorio — Psicologo/Psicoterapeuta
+  Cooperativa/Istituto Minotauro — Milano — © 2026
+-->
+<title>La Stanza del Tesoro — Stage 3</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<style>
+  :root { --gold:#C48A28; --cream:#F2DDAA; --panel:#150C03; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#070503; font-family:Palatino,Georgia,serif; overflow:hidden; user-select:none; -webkit-user-select:none; }
+  #stage { position:fixed; inset:0; background:#000; }
+  #viewer360 { position:absolute; inset:0; width:100%; height:100%; }
+
+  /* ── PANNELLUM ── */
+  .pnlm-load-box  { display:none !important; }
+  .pnlm-about-msg { display:none !important; }
+  .pnlm-controls  { display:none !important; }
+
+  /* ── HOTSPOT dorato ── */
+  .pnlm-hotspot.pnlm-info {
+    background-color:rgba(196,138,40,.28) !important; background-image:none !important;
+    border:2px solid #C48A28 !important; border-radius:50% !important;
+    width:26px !important; height:26px !important;
+    margin-top:-13px !important; margin-left:-13px !important;
+    cursor:pointer !important; overflow:visible !important;
+    animation:pulsaHot 2.5s ease-out infinite;
+  }
+  @keyframes pulsaHot { 0%,100%{box-shadow:0 0 0 0 rgba(196,138,40,.6);} 70%{box-shadow:0 0 0 10px rgba(196,138,40,0);} }
+  .pnlm-hotspot.pnlm-info .pnlm-tooltip {
+    background:rgba(21,12,3,.95) !important; border:1px solid #C48A28 !important;
+    color:#F2DDAA !important; font-family:Palatino,Georgia,serif !important;
+    font-size:14px !important; border-radius:3px !important;
+    padding:5px 12px !important; white-space:nowrap !important; box-shadow:none !important;
+  }
+  .pnlm-hotspot.pnlm-info .pnlm-tooltip::after { display:none !important; }
+  .pnlm-hotspot.pnlm-info .pnlm-tooltip div   { display:none !important; }
+
+  /* ── HUD ── */
+  #titoloScena { position:absolute; top:12px; left:16px; color:var(--cream); font-size:clamp(15px,2.2vw,22px); letter-spacing:.05em; text-shadow:0 0 14px #000,0 0 4px #000; pointer-events:none; z-index:10; }
+  #hintNav { position:absolute; bottom:58px; left:50%; transform:translateX(-50%); color:rgba(242,221,170,.45); font-size:12px; letter-spacing:.1em; pointer-events:none; z-index:10; white-space:nowrap; transition:opacity 1.5s; }
+  #coordHUD { display:none; position:absolute; top:44px; left:16px; color:var(--gold); font-size:13px; font-family:monospace; z-index:10; text-shadow:0 0 8px #000; pointer-events:none; letter-spacing:.04em; }
+  #btnInventario { position:absolute; bottom:14px; right:14px; padding:9px 22px; font-family:Palatino,Georgia,serif; font-size:clamp(13px,1.9vw,17px); cursor:pointer; border-radius:3px; background:#382010; color:var(--cream); border:2px solid var(--gold); letter-spacing:.05em; z-index:10; }
+  @keyframes pulsaGlow { 0%,100%{box-shadow:0 0 16px rgba(196,138,40,.35)} 50%{box-shadow:0 0 38px rgba(196,138,40,.92)} }
+  #btnInventario.illuminato { animation:pulsaGlow 2s ease-in-out infinite; }
+  #btnCalibra { position:absolute; top:12px; right:14px; padding:6px 14px; font-family:Palatino,Georgia,serif; font-size:13px; cursor:pointer; border-radius:3px; background:rgba(21,12,3,.8); color:var(--gold); border:1px solid var(--gold); z-index:10; opacity:.5; }
+  #btnCalibra.attivo { opacity:1; background:#1a2018; }
+
+  /* ── POPUP ── */
+  #velo { position:fixed; inset:0; background:rgba(0,0,0,.78); display:none; align-items:center; justify-content:center; z-index:200; }
+  #velo.attivo { display:flex; }
+  #popup { background:var(--panel); border:2px solid var(--gold); border-radius:6px; padding:28px 34px; max-width:460px; width:90%; text-align:center; color:var(--cream); font-size:18px; line-height:1.6; box-shadow:0 0 60px rgba(196,138,40,.15); max-height:85vh; overflow-y:auto; }
+  #popup .nome { color:var(--gold); font-size:20px; margin-bottom:12px; letter-spacing:.05em; }
+  #popup .testo { margin-bottom:22px; }
+  #popup .testo.corsivo { font-style:italic; }
+  #popup .bottoni { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  #popup button { padding:9px 22px; font-family:inherit; font-size:16px; cursor:pointer; border-radius:3px; color:var(--cream); letter-spacing:.05em; }
+  #popup .si { background:#382010; border:2px solid var(--gold); }
+  #popup .no { background:#380A08; border:2px solid #7A2A1A; }
+
+  /* ── INPUT ENIGMA ── */
+  .inputEnigmaStyle { width:100%; padding:10px 12px; font-family:Palatino,Georgia,serif; font-size:15px; background:#1A0E04; border:1px solid var(--gold); color:var(--cream); border-radius:3px; outline:none; letter-spacing:.02em; margin-top:4px; }
+  .inputEnigmaStyle:focus { border-color:#E8AA48; box-shadow:0 0 8px rgba(196,138,40,.3); }
+  .labelEnigma { text-align:left; font-size:14px; color:var(--gold); margin:16px 0 4px; display:block; }
+  #feedbackEnigma { min-height:22px; margin-top:8px; font-size:13px; font-style:italic; color:#9A7A4A; text-align:left; }
+
+  /* ── INVENTARIO ── */
+  #pannelloInv h3 { color:var(--gold); text-align:center; font-weight:normal; margin:0 0 6px; letter-spacing:.1em; }
+  #contaSlot { text-align:center; font-size:13px; color:#9A8A6A; margin-bottom:14px; }
+  #grigliaInv { display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:18px; }
+  .oggettoInv { background:#240E02; border:1px solid #5A3818; border-radius:4px; padding:8px 12px; display:flex; align-items:center; gap:10px; font-size:14px; text-align:left; }
+  .oggettoInv span.ic { font-size:24px; }
+  .oggettoInv .nm { flex:1; }
+  .oggettoInv button { padding:6px 12px; font-size:12px; border-radius:3px; cursor:pointer; color:var(--cream); font-family:inherit; }
+  .oggettoInv .btnEsamina { background:#1A2018; border:1px solid var(--gold); }
+
+  /* ── CARICAMENTO ── */
+  #schermataCaricamento { position:absolute; inset:0; background:#070503; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+  .carTitolo { color:var(--gold); font-size:20px; letter-spacing:.12em; }
+  #carMsg { color:var(--cream); font-size:14px; font-style:italic; }
+  @keyframes pulsa { 0%,100%{opacity:.35} 50%{opacity:.9} }
+  #carMsg { animation:pulsa 1.8s ease-in-out infinite; }
+
+  /* ── SCHERMATA FINALE ── */
+  #scTesoro { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; gap:18px; text-align:center; padding:28px 20px 40px; color:var(--cream); background:radial-gradient(ellipse at center,#1E1408 0%,#050204 80%); z-index:50; overflow-y:auto; }
+  #scTesoro.attivo { display:flex; }
+  #scTesoro h2 { color:var(--gold); margin:0; font-weight:normal; letter-spacing:.1em; font-size:clamp(18px,2.8vw,26px); }
+  #scTesoro .intro { max-width:520px; line-height:1.7; font-style:italic; opacity:.9; margin:0; font-size:clamp(14px,1.8vw,16px); }
+
+  /* ── REPORT card ── */
+  .reportCard { width:100%; max-width:560px; background:rgba(21,12,3,.75); border:1px solid rgba(196,138,40,.35); border-radius:4px; padding:18px 22px; text-align:left; }
+  .reportCard h3 { color:var(--gold); font-weight:normal; letter-spacing:.12em; font-size:13px; text-transform:uppercase; margin:0 0 14px; border-bottom:1px solid rgba(196,138,40,.2); padding-bottom:8px; }
+  .reportRiga { display:flex; gap:8px; align-items:baseline; font-size:13px; margin-bottom:7px; line-height:1.5; }
+  .reportRiga .eLabel { color:#7A6A4A; min-width:160px; flex-shrink:0; }
+  .reportRiga .eValore { color:var(--cream); }
+  .eValore.pos { color:#8ABF68; }
+  .eValore.neg { color:#BF8A68; }
+  .eValore.neu { color:#A09070; }
+
+  /* ── REPORT soft skills ── */
+  .skillBlocco { margin-bottom:14px; }
+  .skillBlocco:last-child { margin-bottom:0; }
+  .skillLabel { font-size:13px; color:var(--gold); letter-spacing:.06em; margin-bottom:4px; }
+  .skillText { font-size:13px; font-style:italic; color:#B0A080; line-height:1.65; margin:0; }
+
+  /* ── REPORT prompt AI ── */
+  .promptNote { font-size:12px; color:#6A5A3A; margin:0 0 10px; line-height:1.5; }
+  #promptAI { font-family:monospace; font-size:11px; background:#080503; border:1px solid rgba(196,138,40,.2); border-radius:3px; padding:12px 14px; color:#8A7A5A; line-height:1.7; white-space:pre-wrap; text-align:left; max-height:160px; overflow-y:auto; }
+  .btnCopia { margin-top:10px; padding:7px 18px; font-family:Palatino,Georgia,serif; font-size:13px; cursor:pointer; border-radius:3px; background:#1A2018; color:var(--cream); border:1px solid var(--gold); letter-spacing:.04em; }
+  .btnCopia:hover { background:#253022; }
+  .btnTorna { padding:9px 22px; font-family:Palatino,Georgia,serif; font-size:15px; cursor:pointer; border-radius:3px; background:#382010; color:var(--cream); border:2px solid var(--gold); letter-spacing:.04em; }
+
+  /* ── CREDITI ── */
+  #btnCrediti { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); background:transparent; border:none; color:#4A3A22; font-family:Palatino,Georgia,serif; font-size:11px; cursor:pointer; letter-spacing:.06em; padding:4px 8px; z-index:10; }
+  #btnCrediti:hover { color:var(--gold); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="viewer360"></div>
+  <div id="schermataCaricamento">
+    <div class="carTitolo">― La Stanza del Tesoro ―</div>
+    <div id="carMsg">Caricamento in corso…</div>
+  </div>
+  <div id="titoloScena">La Stanza del Tesoro</div>
+  <div id="hintNav">← trascina per esplorare →</div>
+  <div id="coordHUD">pitch: — | yaw: —</div>
+  <button id="btnCalibra" onclick="toggleCalibra()">🎯</button>
+  <button id="btnInventario" onclick="apriInventario()">🎒 Zaino</button>
+  <button id="btnCrediti" onclick="mostraCrediti()">© Dott. Magri Gregorio</button>
+  <div id="velo"><div id="popup"></div></div>
+  <div id="scTesoro"><!-- Costruito da apriTesoro() --></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════
+   STAGE 3 — LA STANZA DEL TESORO
+   Autore: Dott. Magri Gregorio — Istituto Minotauro, Milano
+═══════════════════════════════════════════════════════ */
+
+/* ── STATO GIOCO ── */
+let inventario=[],raccolti=new Set();
+let clickTotali=0,clickSenzaInventario=0,baglioreMostrato=false;
+let viewer=null,calibraAttiva=false;
+
+/* ── STATO ENIGMA ── */
+let hotspotVisitati=new Set();
+let tentativiEnigma=0;
+let enigmaRisolto=false;
+
+/* ── TRACKING TEMPO STAGE 3 ── */
+let inizioS3=Date.now();
+
+/* ── FLAG E DATI DA STAGES PRECEDENTI ── */
+let statoS2={
+  aldricLiberato:false, giaStatoMaledetto:false,
+  gemmaDataAdArachne:false, rattoConsultato:false, easterEggRisolto:false,
+};
+let trackingPrecedente={
+  tempoStage1:0, clickStage1:0,
+  tempoStage2:0, clickStage2:0,
+};
+
+/* ── RISPOSTA ENIGMA ─────────────────────────────────
+   RISPOSTA_A: titolo completo del film/libro
+   Candidato: "Molto forte, incredibilmente vicino" (Foer)
+   Da confermare — modificare solo questa costante.
+   ─────────────────────────────────────────────────── */
+const RISPOSTA_A="molto forte incredibilmente vicino";
+const RISPOSTA_C="imparato";
+
+/* ── LINK CONDIVISO ─────────────────────────────────
+   Lo stato di gioco viaggia nell'URL come base64.
+   Chi apre il link ha con sé tutta la storia del viaggio.
+   ─────────────────────────────────────────────────── */
+function leggiStatoDaURL(){
+  try{
+    const encoded=new URLSearchParams(window.location.search).get('s');
+    if(!encoded) return null;
+    return decodeURIComponent(escape(atob(encoded)));
+  }catch(e){ return null; }
+}
+
+function generaLinkCondiviso(){
+  try{
+    const raw=localStorage.getItem("aventuraStato");
+    if(!raw) return null;
+    const encoded=btoa(unescape(encodeURIComponent(raw)));
+    const base=window.location.href.split('?')[0].split('#')[0];
+    return base+'?s='+encoded;
+  }catch(e){ return null; }
+}
+
+/* ── HOTSPOT DATA ── */
+const HOTSPOT_DATI=[
+  {id:"_test",     pitch:0,     yaw:0,      nome:"⊕ Centro"  },
+  {id:"pergamene", pitch:-18.8, yaw:51.5,   nome:"Pergamene" },
+  {id:"scrigno",   pitch:-29.9, yaw:117.8,  nome:"Scrigno"   },
+  {id:"scrittoio", pitch:-9.8,  yaw:-11.9,  nome:"Scrittoio" },
+  {id:"monete",    pitch:3.7,   yaw:-53.6,  nome:"Monete"    },
+  {id:"mobiletto", pitch:-9.4,  yaw:-85.1,  nome:"Mobiletto" },
+  {id:"candele",   pitch:3.7,   yaw:-148.1, nome:"Candele"   },
+];
+const ESCLUSI_SOGLIA=new Set(["_test","scrigno"]);
+function hotspotPista(){return HOTSPOT_DATI.filter(h=>!ESCLUSI_SOGLIA.has(h.id));}
+function sogliaDiVisita(){return Math.ceil(hotspotPista().length/2);}
+
+/* ── TESTI HOTSPOT ── */
+const HOTSPOTS={
+  _test:     {nome:"Test centro",   descrizione:"Hotspot a pitch:0, yaw:0 — deve apparire al centro esatto. Se è qui, il posizionamento funziona."},
+  pergamene: {nome:"Pergamene",     descrizione:"<div style='font-style:normal;display:block;line-height:2.1;font-size:13px;text-align:left'>Questo luogo ha qualcosa d<span style='font-family:Georgia,serif;font-weight:bold'>i</span> speciale che le parole non catturano.<br>La pietra stessa sembra respirare, se<span style='font-family:Georgia,serif;font-weight:bold'>n</span>za far rumore.<br>Chi vuole trovare deve imparare a cer<span style='font-family:Georgia,serif;font-weight:bold'>c</span>are in modo diverso.<br>Ogni anfratto di questo posto cu<span style='font-family:Georgia,serif;font-weight:bold'>r</span>a le proprie memorie.<br>Qu<span style='font-family:Georgia,serif;font-weight:bold'>e</span>ste stanze ricordano chi è passato prima di te.<br>Passa un <span style='font-family:Georgia,serif;font-weight:bold'>d</span>ecennio, poi un altro, eppure qualcosa resta uguale.<br>Il s<span style='font-family:Georgia,serif;font-weight:bold'>i</span>lenzio qui ha il peso delle cose non dette.<br>Ogni al<span style='font-family:Georgia,serif;font-weight:bold'>b</span>a nuova trova questo posto immutato.<br>La part<span style='font-family:Georgia,serif;font-weight:bold'>i</span>colarità di questo luogo non si spiega — si sente.<br>Nu<span style='font-family:Georgia,serif;font-weight:bold'>l</span>la qui è lasciato al caso.<br>Anni innu<span style='font-family:Georgia,serif;font-weight:bold'>m</span>erevoli di storia silenziosa aspettano di essere letti.<br>Ciò ch<span style='font-family:Georgia,serif;font-weight:bold'>e</span> sembra ovvio spesso nasconde la risposta.<br>Questo posto è sempre stato qui, dime<span style='font-family:Georgia,serif;font-weight:bold'>n</span>ticato dal mondo.<br>Il por<span style='font-family:Georgia,serif;font-weight:bold'>t</span>ale di questa stanza non si apre con una chiave.<br>Alla fin<span style='font-family:Georgia,serif;font-weight:bold'>e</span>, ciò che conta non è la meta ma il cammino percorso.</div>"},
+  scrigno:   {nome:"Scrigno",       descrizione:"Legno scuro rinforzato con borchie di ferro, una serratura elaborata al centro. Non c'è buco per una chiave. Intorno alla serratura, inciso nel legno:<br><br><i>«Aprimi con quello che hai imparato, non con quello che hai trovato.<br>Quattro parole. Una storia che qualcuno ha già scritto — ma forse anche la tua.»</i>"},
+  scrittoio: {nome:"Scrittoio",     descrizione:"<div style='font-style:normal;font-size:13px;text-align:left;line-height:1.75'><div style='color:var(--gold);font-size:11px;letter-spacing:.1em;margin-bottom:4px'>― DIARIO DI UN SOLDATO, GIORNO IGNOTO ―</div><p style='margin:0 0 12px;font-style:italic'>«Stanotte ho tenuto la mano di Aldric per ore.<br>Non c'era niente da dire. Bastava restare lì, così.»</p><div style='color:var(--gold);font-size:11px;letter-spacing:.1em;margin-bottom:4px'>― LETTERA DI UNA MADRE ―</div><p style='margin:0 0 12px;font-style:italic'>«Quando piange abbasso la fronte fino a toccare la sua.<br>In quel momento il mondo finisce qui, e basta.»</p><div style='color:var(--gold);font-size:11px;letter-spacing:.1em;margin-bottom:4px'>― NOTA DI UN GUARITORE, SENZA DATA ―</div><p style='margin:0 0 12px;font-style:italic'>«Il mio lavoro non è curare. È stare.<br>Non davanti, non dietro. In quel posto esatto<br>dove l'altro può sentirti senza cercarti.»</p><p style='margin:0;color:#9A8A6A;font-style:italic'>Tre voci. Una sola parola le descrive tutte.</p></div>"},
+  monete:    {nome:"Monete",        descrizione:"Le monete più antiche portano incisa la stessa parola su ogni faccia. I mercanti la usavano per il primo affare, il più importante, quello che non si sbagliava.<br><br>Su una moneta consumata, quasi illeggibile:<br><br><i>«Sono il fratello del forte, il padre del potente. Mi trovi nella quercia e nell'impresa, nel gesto che non passa inosservato e nell'idea che supera ogni misura. Sono ciò che sei quando hai dato tutto. Chi sono?»</i>"},
+  mobiletto: {nome:"Mobiletto",     descrizione:"Nel cassetto più in basso, un biglietto sgualcito.<br><br><i>«Sono nel grido di chi chiama aiuto nel buio.<br>Sono nel vento che piega gli alberi ma non li spezza.<br>Sono il nome che dai alle mura che proteggono<br>e alla nota più alta che una campana può fare.<br>Mi trovi nel castello e nel pugno chiuso,<br>nella voce di chi non ha paura<br>e nella roccia che non cede.<br><br>Chi sono?»</i>"},
+  candele:   {nome:"Candele",       descrizione:"Tra le candele, un leggio con un frammento di partitura. Qualcuno studiava musica in questa stanza — o forse la ascoltava soltanto.<br><br><div style='background:#0A0604;border:1px solid rgba(196,138,40,.25);border-radius:3px;padding:10px;margin:8px 0;text-align:center'><img src='img/spartito-molto.jpg' alt='partitura' style='width:100%;height:180px;object-fit:cover;object-position:center 35%;border-radius:2px' onerror='this.style.display=\'none\';this.nextSibling.style.display=\'block\''><span style='display:none;color:#6A5A3A;font-size:12px;font-family:monospace'>[ spartito — img/spartito-molto.jpg ]</span></div>Una parola che i musicisti conoscono bene.<br><br><i>«Non poco, non abbastanza. Questa.»</i>"},
+};
+
+/* ── TESTI ESAMINA ── */
+const ESAMINA={
+  pergamena:{titolo:"Pergamena Antica ✦",   testo:"Il testo parla di un Sigillo che <i>«risponde solo a chi ha saputo stare nel dubbio senza fuggire»</i>. Sotto: <i>«L'errore non è il contrario della risposta giusta — è la strada per trovarla.»</i>"},
+  mestolo:  {titolo:"Mestolo di Legno ✦",   testo:"Uno strumento semplice, usato per cercare senza distruggere. Forse conta come hai usato ciò che hai trovato, non cosa era."},
+  erbe:     {titolo:"Fascio di Erbe ✦",     testo:"L'odore è ancora vivo. Uno dei simboli sul leggio somiglia a una pianta che cresce in un terreno arido. Coincidenza?"},
+  gemma:    {titolo:"Gemma Opaca ✦",        testo:"Non brilla. Non l'ha mai fatto. Eppure qualcuno l'ha tenuta nascosta per decenni. Forse il valore stava in chi era disposto a vederla anche spenta."},
+  mappa:    {titolo:"Mappa dei Cunicoli ✦", testo:"La stessa mappa che ti ha guidato fin qui. Il vero tesoro potrebbe essere la mappa di un viaggio interiore — non di questo castello."},
+};
+
+/* ── DOM ── */
+const elVelo=document.getElementById("velo"),
+      elPopup=document.getElementById("popup"),
+      elBtnInv=document.getElementById("btnInventario");
+function msg(t){const el=document.getElementById("carMsg");if(el)el.textContent=t;}
+
+/* ── CALIBRAZIONE ── */
+function toggleCalibra(){
+  calibraAttiva=!calibraAttiva;
+  const btn=document.getElementById("btnCalibra"),hud=document.getElementById("coordHUD");
+  btn.classList.toggle("attivo",calibraAttiva);
+  hud.style.display=calibraAttiva?"block":"none";
+  if(calibraAttiva)aggiornaCoord();
+}
+function aggiornaCoord(){
+  if(!calibraAttiva||!viewer)return;
+  document.getElementById("coordHUD").textContent=
+    "pitch: "+viewer.getPitch().toFixed(1)+" | yaw: "+viewer.getYaw().toFixed(1);
+  requestAnimationFrame(aggiornaCoord);
+}
+
+/* ── POPUP ── */
+function mostraPopup(html){elPopup.innerHTML=html;elVelo.classList.add("attivo");}
+function chiudiPopup(){elVelo.classList.remove("attivo");elPopup.innerHTML="";}
+function popupEsito(titolo,testo){
+  mostraPopup(`${titolo?`<div class="nome">${titolo}</div>`:""}
+    <div class="testo corsivo">${testo}</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+/* ── CLICK HOTSPOT ── */
+function clickHotspot(id){
+  if(id==="_test"){popupEsito("⊕ Test posizionamento",HOTSPOTS._test.descrizione);return;}
+  clickTotali++;clickSenzaInventario++;
+  verificaBagliore();
+  if(id==="scrigno"){mostraScrigno();return;}
+  hotspotVisitati.add(id);
+  const h=HOTSPOTS[id];if(!h)return;
+  popupEsito(h.nome,h.descrizione);
+}
+
+/* ── SCRIGNO ── */
+function mostraScrigno(){
+  if(enigmaRisolto){document.getElementById("scTesoro").classList.add("attivo");chiudiPopup();return;}
+  const visitati=hotspotVisitati.size,soglia=sogliaDiVisita();
+  if(visitati<soglia){
+    mostraPopup(`<div class="nome">― Scrigno ―</div>
+      <div class="testo corsivo">${HOTSPOTS.scrigno.descrizione}</div>
+      <div style="margin-top:8px;font-size:14px;color:#9A7A4A;font-style:italic">Lo scrigno non cede. La stanza ha ancora qualcosa da dirti — esplora ancora.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Esploro ancora</button></div>`);
+    return;
+  }
+  mostraEnigma();
+}
+
+function mostraEnigma(){
+  mostraPopup(`<div class="nome">― Scrigno ―</div>
+    <div class="testo corsivo">${HOTSPOTS.scrigno.descrizione}</div>
+    <label class="labelEnigma">La tua risposta:</label>
+    <input id="inputEnigma" type="text" class="inputEnigmaStyle"
+      placeholder="Scrivi qui…" autocomplete="off" autocorrect="off" spellcheck="false"
+      onkeydown="if(event.key==='Enter')verificaRisposta()">
+    <div id="feedbackEnigma"></div>
+    <div class="bottoni" style="margin-top:14px">
+      <button class="si" onclick="verificaRisposta()">Apri</button>
+      <button class="no" onclick="chiudiPopup()">Chiudi</button>
+    </div>`);
+  setTimeout(()=>{const i=document.getElementById("inputEnigma");if(i)i.focus();},120);
+}
+
+function normalizza(s){return s.trim().toLowerCase().replace(/[,;:!?.«»""'']/g,"").replace(/\s+/g," ");}
+
+function verificaRisposta(){
+  if(enigmaRisolto)return;
+  const inp=document.getElementById("inputEnigma");if(!inp)return;
+  const r=normalizza(inp.value);
+  if(!r){const fb=document.getElementById("feedbackEnigma");if(fb)fb.textContent="Scrivi qualcosa prima di provare.";return;}
+  if(r===normalizza(RISPOSTA_A)){enigmaRisolto=true;chiudiPopup();apriTesoro("completo");return;}
+  if(r===RISPOSTA_C){enigmaRisolto=true;chiudiPopup();apriTesoro("breve");return;}
+  tentativiEnigma++;
+  const fb=document.getElementById("feedbackEnigma");
+  if(fb){
+    const v=["Lo scrigno non reagisce.","Niente. Forse cerchi ancora la risposta giusta invece di quella vera.","Ancora no. Rileggi l'iscrizione con attenzione.","Lo scrigno tace. La risposta è più vicina di quanto pensi.","Continua a cercare. A volte la risposta è già in quello che hai visto."];
+    fb.textContent=v[Math.min(tentativiEnigma-1,v.length-1)];
+  }
+}
+
+/* ── UTILITÀ TEMPO ── */
+function formatTempo(sec){
+  if(!sec||sec<=0) return "—";
+  const m=Math.floor(sec/60),s=sec%60;
+  return m>0?`${m} min ${s} sec`:`${s} sec`;
+}
+
+/* ══════════════════════════════════════════════════════
+   REPORT FINALE
+══════════════════════════════════════════════════════ */
+function apriTesoro(modo){
+  const sc=document.getElementById("scTesoro");if(!sc)return;
+
+  /* ── Dati oggetti ── */
+  const oggettiLista=inventario.length>0
+    ?inventario.map(o=>`${o.icona} ${o.nome}`).join(' · ')
+    :'Nessun oggetto portato';
+
+  /* ── Stringa scelte ── */
+  const dAldric  =statoS2.aldricLiberato    ?{t:'Liberato dalla cella',     c:'pos'}:{t:'Lasciato in prigione',  c:'neg'};
+  const dMale    =statoS2.giaStatoMaledetto ?{t:'Subita (e poi curata)',     c:'neg'}:{t:'Evitata con prudenza',  c:'pos'};
+  const dArachne =statoS2.gemmaDataAdArachne?{t:'Gemma offerta (scorciatoia)',c:'neu'}:{t:'Quiz affrontato',      c:'pos'};
+  const dTopinus =statoS2.rattoConsultato   ?{t:'Consultato',                c:'pos'}:{t:'Ignorato',             c:'neu'};
+  const dEnigma  =modo==='completo'?{t:'Titolo trovato (via completa)',c:'pos'}:{t:'Parola chiave (via breve)',c:'neu'};
+  const tentativi=tentativiEnigma;
+  const dTentativi=tentativi===0?'nessuno':tentativi===1?'1':String(tentativi);
+
+  /* ── Calcolo tempi e click ── */
+  const tS1=trackingPrecedente.tempoStage1;
+  const tS2=trackingPrecedente.tempoStage2;
+  const tS3=Math.round((Date.now()-inizioS3)/1000);
+  const tTot=tS1+tS2+tS3;
+
+  const cS1=trackingPrecedente.clickStage1;
+  const cS2=trackingPrecedente.clickStage2;
+  const cS3=clickTotali;
+  const cTot=cS1+cS2+cS3;
+
+  const tempoStr=tTot>0
+    ?`${formatTempo(tTot)} <span style="color:#6A5A3A;font-size:11px">(S1: ${formatTempo(tS1)} · S2: ${formatTempo(tS2)} · S3: ${formatTempo(tS3)})</span>`
+    :'—';
+  const clickStr=cTot>0
+    ?`${cTot} <span style="color:#6A5A3A;font-size:11px">(S1: ${cS1} · S2: ${cS2} · S3: ${cS3})</span>`
+    :'—';
+
+  /* ── Soft skills ── */
+  let testoAscolto,testoCollab,testoErrore;
+  if(statoS2.aldricLiberato&&statoS2.rattoConsultato)
+    testoAscolto="Ha scelto di fermarsi due volte — con Aldric e con Topinus. L'ascolto, in questo viaggio, ha avuto conseguenze concrete su entrambi.";
+  else if(statoS2.aldricLiberato)
+    testoAscolto="Ha liberato Aldric ma ha lasciato perdere Topinus. Ha ascoltato dove ha scelto di farlo — non ovunque.";
+  else if(statoS2.rattoConsultato)
+    testoAscolto="Ha cercato la guida di Topinus, ma non si è fermato ad aiutare Aldric. L'ascolto selettivo ha una sua logica — e un costo.";
+  else
+    testoAscolto="Ha attraversato le segrete senza sostare molto. Forse la velocità era la priorità — o l'ascolto si esprimeva in un'altra forma.";
+
+  testoCollab=statoS2.gemmaDataAdArachne
+    ?"Ha offerto la gemma ad Arachne invece di affrontare il quiz. Collaborare, qui, ha significato scegliere la via della mediazione e dell'accordo."
+    :"Ha affrontato il quiz di Arachne senza cercare scorciatoie. La collaborazione si è espressa nell'accettare la sfida proposta dall'altro.";
+  if(modo==='breve') testoCollab+=" Nello Stage 3 ha preferito la risposta più breve allo scrigno.";
+
+  if(statoS2.giaStatoMaledetto&&tentativi>2)
+    testoErrore="La maledizione è arrivata e poi è passata. Lo scrigno ha richiesto più tentativi. L'errore è stato ospite frequente — e questo è già un dato su cui riflettere insieme.";
+  else if(statoS2.giaStatoMaledetto)
+    testoErrore="La maledizione è stata sperimentata e curata. Allo scrigno invece la soluzione è arrivata presto. Due ritmi diversi nello stesso viaggio.";
+  else if(tentativi>2)
+    testoErrore="La maledizione è stata evitata con prudenza. Lo scrigno ha richiesto più tentativi — qui l'errore ha avuto spazio, e il percorso si è allungato.";
+  else
+    testoErrore="Maledizione evitata, scrigno aperto in pochi tentativi. Un percorso lineare — o molto concentrato. Cosa avrebbe cambiato fermarsi di più?";
+
+  /* ── Intro narrativa ── */
+  const introTesto=modo==='completo'
+    ?"Lo scrigno si apre con un suono antico e definitivo. Avevi trovato il nome — quello che questa stanza aspettava da decenni di essere chiamato. Non c'era oro. C'era questa storia."
+    :"Lo scrigno si apre. Hai letto l'iscrizione e hai risposto con quello che suggeriva. Forse è la risposta più onesta — o forse c'era anche un nome, nascosto in questa stanza, ancora in attesa.";
+
+  /* ── Prompt AI ── */
+  const promptTesto=generaPromptAI(modo,oggettiLista,tentativi,tTot,cTot);
+
+  /* ── HTML ── */
+  sc.innerHTML=`
+    <h2>― Il Tesoro di Roccabruna ―</h2>
+    <p class="intro">${introTesto}</p>
+
+    <div class="reportCard">
+      <h3>Il tuo viaggio</h3>
+      <div class="reportRiga"><span class="eLabel">Oggetti portati</span><span class="eValore">${oggettiLista}</span></div>
+      <div class="reportRiga"><span class="eLabel">Aldric il Prigioniero</span><span class="eValore ${dAldric.c}">${dAldric.t}</span></div>
+      <div class="reportRiga"><span class="eLabel">Maledizione dell'osso</span><span class="eValore ${dMale.c}">${dMale.t}</span></div>
+      <div class="reportRiga"><span class="eLabel">Arachne la Veggente</span><span class="eValore ${dArachne.c}">${dArachne.t}</span></div>
+      <div class="reportRiga"><span class="eLabel">Topinus il Saggio</span><span class="eValore ${dTopinus.c}">${dTopinus.t}</span></div>
+      <div class="reportRiga"><span class="eLabel">Enigma dello scrigno</span><span class="eValore ${dEnigma.c}">${dEnigma.t}</span></div>
+      <div class="reportRiga"><span class="eLabel">Tentativi sbagliati</span><span class="eValore neu">${dTentativi}</span></div>
+      <div class="reportRiga" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(196,138,40,.15)">
+        <span class="eLabel">⏱ Tempo di gioco</span><span class="eValore">${tempoStr}</span>
+      </div>
+      <div class="reportRiga">
+        <span class="eLabel">🖱 Interazioni totali</span><span class="eValore">${clickStr}</span>
+      </div>
+    </div>
+
+    <div class="reportCard">
+      <h3>Soft skills emerse</h3>
+      <div class="skillBlocco"><p class="skillLabel">👂 Ascolto</p><p class="skillText">${testoAscolto}</p></div>
+      <div class="skillBlocco"><p class="skillLabel">🤝 Collaborazione</p><p class="skillText">${testoCollab}</p></div>
+      <div class="skillBlocco"><p class="skillLabel">🌱 Stare nell'errore</p><p class="skillText">${testoErrore}</p></div>
+    </div>
+
+    <div class="reportCard">
+      <h3>Racconto narrativo — prompt per AI</h3>
+      <p class="promptNote">Copia questo testo e incollalo in Claude o ChatGPT per generare il racconto del viaggio in stile medievale.</p>
+      <div id="promptAI">${promptTesto}</div>
+      <button class="btnCopia" onclick="copiaPrompt()">📋 Copia prompt</button>
+    </div>
+
+    <button class="btnTorna" onclick="document.getElementById('scTesoro').classList.remove('attivo')">← Torna alla stanza</button>`;
+
+  sc.classList.add("attivo");
+}
+
+/* ── GENERA PROMPT AI ── */
+function generaPromptAI(modo,oggettiLista,tentativi,tempoTot,clickTot){
+  const s=statoS2;
+  const righe=[
+    "Sei Ser Cronaco, cantastorie medievale del castello di Roccabruna.",
+    "Scrivi un racconto in prosa poetica (300-400 parole) sul viaggio di un avventuriero appena concluso.",
+    "",
+    "DATI DEL VIAGGIO:",
+    "• Oggetti portati nel tesoro: "+oggettiLista,
+    "• Aldric il Prigioniero: "+(s.aldricLiberato?"liberato dalla cella":"lasciato in prigione"),
+    "• Maledizione dell'osso: "+(s.giaStatoMaledetto?"subita e poi curata con le erbe":"evitata con prudenza"),
+    "• Arachne la Veggente: "+(s.gemmaDataAdArachne?"convinta con la gemma (via della mediazione)":"affrontata con il quiz sulle soft skills"),
+    "• Topinus il Saggio: "+(s.rattoConsultato?"consultato come guida lungo il cammino":"ignorato"),
+    "• Enigma dello scrigno: "+(modo==="completo"?"risposta completa trovata (ha esplorato tutta la stanza)":"risposta breve trovata (ha letto l'iscrizione)")+" — "+tentativi+" "+(tentativi===1?"tentativo sbagliato":"tentativi sbagliati")+" prima della soluzione",
+    "• Tempo complessivo: "+(tempoTot>0?formatTempo(tempoTot):"non disponibile"),
+    "• Interazioni totali: "+(clickTot>0?clickTot+" click":"non disponibile"),
+    "",
+    "INDICAZIONI:",
+    "— Inizia con: «Nel castello di Roccabruna, dove ogni pietra custodisce una storia...»",
+    "— Valorizza le scelte fatte senza giudicarle: ogni percorso ha la sua logica.",
+    "— Concludi con: il vero tesoro non era oro, ma qualcosa di imparato sul cammino.",
+    "— Tono: epico ma umano, medievale ma comprensibile.",
+  ];
+  return righe.join("\n");
+}
+
+/* ── COPIA PROMPT ── */
+function copiaPrompt(){
+  const box=document.getElementById("promptAI");if(!box)return;
+  const testo=box.textContent||box.innerText;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(testo).then(()=>{
+      const btn=document.querySelector(".btnCopia");
+      if(btn){btn.textContent="✓ Copiato!";setTimeout(()=>{btn.textContent="📋 Copia prompt";},2200);}
+    }).catch(()=>selezionaTesto(box));
+  }else{selezionaTesto(box);}
+}
+function selezionaTesto(el){const sel=window.getSelection(),r=document.createRange();r.selectNodeContents(el);sel.removeAllRanges();sel.addRange(r);}
+
+/* ── INVENTARIO ── */
+function leggiStato(){
+  let raw=null;
+  // Controlla prima URL (link condiviso), poi localStorage (flusso normale)
+  const urlStato=leggiStatoDaURL();
+  if(urlStato){ raw=urlStato; }
+  else { try{ raw=localStorage.getItem("aventuraStato"); }catch(e){} }
+  try{
+    if(raw){
+      const s=JSON.parse(raw);
+      inventario=s.inventario||[];
+      raccolti=new Set(s.raccolti||[]);
+      statoS2={
+        aldricLiberato:    !!s.aldricLiberato,
+        giaStatoMaledetto: !!s.giaStatoMaledetto,
+        gemmaDataAdArachne:!!s.gemmaDataAdArachne,
+        rattoConsultato:   !!s.rattoConsultato,
+        easterEggRisolto:  !!s.easterEggRisolto,
+      };
+      trackingPrecedente={
+        tempoStage1: s.tempoStage1||0,
+        clickStage1: s.clickStage1||0,
+        tempoStage2: s.tempoStage2||0,
+        clickStage2: s.clickStage2||0,
+      };
+    }
+  }catch(e){console.warn(e);}
+  aggiornaBottoneInv();
+  if(inventario.length>0)elBtnInv.classList.add("illuminato");
+}
+function aggiornaBottoneInv(){elBtnInv.textContent=inventario.length>0?`✨ Zaino (${inventario.length})`:`🎒 Zaino`;}
+function apriInventario(){
+  clickTotali++;clickSenzaInventario=0;elBtnInv.classList.remove("illuminato");
+  if(inventario.length===0){
+    mostraPopup(`<div class="nome">― Zaino ―</div>
+      <div class="testo corsivo">Non porti niente con te. Il tuo viaggio è segnato più dalle scelte che dagli oggetti.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>`);
+    return;
+  }
+  const righe=inventario.map(o=>`
+    <div class="oggettoInv">
+      <span class="ic">${o.icona}</span><span class="nm">${o.nome}</span>
+      <div><button class="btnEsamina" onclick="chiudiPopup();esamina('${o.id}')">✦ Esamina</button></div>
+    </div>`).join("");
+  mostraPopup(`<div id="pannelloInv">
+    <h3>― Zaino ―</h3>
+    <div id="contaSlot">${inventario.length} oggett${inventario.length===1?"o":"i"} — rivelano indizi</div>
+    <div id="grigliaInv">${righe}</div>
+    <div class="bottoni"><button class="no" onclick="chiudiPopup()">Chiudi</button></div>
+  </div>`);
+}
+function esamina(id){
+  const d=ESAMINA[id];
+  const obj=inventario.find(o=>o.id===id);
+  if(!obj){ popupEsito("Oggetto","Non rivela ancora niente di nuovo."); return; }
+
+  /* Testo base dell'oggetto (narrativo, specifico per oggetto) */
+  const base = d
+    ? d.testo
+    : "In questa stanza rivela qualcosa di diverso rispetto a prima.";
+
+  /* Meta-suggerimento basato su QUANTI oggetti si portano, non su quale */
+  const n = inventario.length;
+  let suggerimento = "";
+  if(n >= 3)
+    suggerimento = "Porti con te tre storie. Anche quello che cerca questa stanza è una storia — scritta da qualcun altro, con un titolo preciso. Quattro parole.";
+  else if(n >= 2)
+    suggerimento = "Due oggetti, due storie che si incontrano qui. Il numero quattro ritorna in questa stanza, se sai dove guardare.";
+  else
+    suggerimento = "In questa stanza gli oggetti rivelano la loro vera natura. Non tutto ciò che trovi porta dove pensi — alcune porte sembrano giuste ma non lo sono.";
+
+  const titoloOgg = d ? d.titolo : `${obj.icona} ${obj.nome} ✦`;
+  mostraPopup(`
+    <div class="nome">${titoloOgg}</div>
+    <div class="testo corsivo">${base}</div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(196,138,40,.2);
+      font-size:13px;font-style:italic;color:#9A7A4A;line-height:1.6">
+      ${suggerimento}
+    </div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Capito</button></div>`);
+}
+
+/* ── BAGLIORE ── */
+function verificaBagliore(){
+  if(baglioreMostrato||inventario.length===0)return;
+  if(clickSenzaInventario>=6){
+    baglioreMostrato=true;
+    setTimeout(()=>{mostraPopup(`
+      <div class="nome">― Un bagliore dallo zaino ―</div>
+      <div class="testo corsivo">Noti un fremito dorato provenire dallo zaino. Gli oggetti che hai portato sembrano <i>reagire</i> a qualcosa in questa stanza.</div>
+      <div class="bottoni">
+        <button class="si" onclick="chiudiPopup();apriInventario()">Apri lo zaino</button>
+        <button class="no" onclick="chiudiPopup()">Dopo</button>
+      </div>`);},400);
+  }
+}
+
+/* ── INTRO ── */
+function mostraIntroS3(){
+  const lista=inventario.length>0
+    ?inventario.map(o=>`${o.icona} <b>${o.nome}</b>`).join(", ")
+    :"<i>niente — hai viaggiato a mani vuote</i>";
+  mostraPopup(`
+    <div class="nome">― La Stanza del Tesoro ―</div>
+    <div class="testo corsivo">La porta si chiude alle tue spalle con un suono sordo e definitivo.<br><br>
+      Sei al centro di una stanza che il Signore di Roccabruna ha custodito per decenni.
+      L'aria è ferma. Le torce bruciano come se ti aspettassero.<br><br>
+      Con te: ${lista}.<br><br>
+      <i>Qualcosa in questa stanza vuole essere trovato. Non con la forza — ormai lo sai.</i>
+    </div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Entra</button></div>`);
+}
+
+/* ── CREDITI ── */
+function mostraCrediti(){
+  popupEsito("― Crediti ―",
+    "<b>L'Avventura della Taverna</b><br><br>Un progetto di<br><b>Dott. Magri Gregorio</b><br>Psicologo / Psicoterapeuta<br><br>Cooperativa / Istituto Minotauro — Milano<br><br><span style='font-size:13px;color:#7A6A5A'>© 2026 Dott. Magri Gregorio<br>Tutti i diritti riservati.</span>");
+}
+
+/* ── HOTSPOT PANNELLUM ── */
+function creaHotspot(){
+  return HOTSPOT_DATI.map(h=>({
+    pitch:h.pitch,yaw:h.yaw,type:"info",text:h.nome,
+    clickHandlerFunc:function(e,args){e.stopPropagation();clickHotspot(args.id);},
+    clickHandlerArgs:{id:h.id}
+  }));
+}
+
+/* ── AVVIO ── */
+elVelo.addEventListener("click",e=>{if(e.target===elVelo)chiudiPopup();});
+leggiStato();
+
+msg("Verifica WebGL…");
+function checkWebGL(){
+  try{const c=document.createElement("canvas");const gl=c.getContext("webgl")||c.getContext("experimental-webgl");return !!(gl&&gl instanceof WebGLRenderingContext);}catch(e){return false;}
+}
+if(!checkWebGL()){
+  document.getElementById("schermataCaricamento").innerHTML=
+    '<div style="color:var(--gold);text-align:center;padding:28px;font-family:Palatino,serif">― WebGL non disponibile ―<br><br><span style="color:var(--cream);font-size:14px">Prova in Safari o Chrome aggiornato.</span></div>';
+}else if(typeof pannellum==="undefined"){
+  document.getElementById("schermataCaricamento").innerHTML=
+    '<div style="color:var(--gold);text-align:center;padding:28px;font-family:Palatino,serif">― Pannellum non caricato ―<br><br><span style="color:var(--cream);font-size:14px">Verifica la connessione internet e ricarica.</span></div>';
+}else{
+  msg("Caricamento panoramica…");
+  try{
+    viewer=pannellum.viewer("viewer360",{
+      type:"equirectangular",panorama:"img/tesoro-360.jpg",
+      autoLoad:true,showControls:false,showFullscreenCtrl:false,
+      showZoomCtrl:false,mouseZoom:false,compass:false,
+      hfov:100,pitch:0,yaw:0,
+      hotSpots:creaHotspot(),
+    });
+    viewer.on("load",function(){
+      inizioS3=Date.now(); // avvia timer S3 quando il viewer è pronto
+      document.getElementById("schermataCaricamento").style.display="none";
+      setTimeout(()=>{const h=document.getElementById("hintNav");if(h)h.style.opacity="0";},5000);
+      mostraIntroS3();
+    });
+    viewer.on("error",function(e){msg("Errore: "+(e||"sconosciuto")+" — verifica img/tesoro-360.jpg");});
+  }catch(err){msg("Errore JS: "+err.message);}
+}
+</script>
+</body>
+</html>
